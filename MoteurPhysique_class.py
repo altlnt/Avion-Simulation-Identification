@@ -24,7 +24,7 @@ class MoteurPhysique():
     def __init__(self,save_path=savepath_base):
         
         try:
-            os.mkdir(savepath_base)
+            os.system("mkdir -p "+savepath_base)
         except:
             pass
         
@@ -89,6 +89,48 @@ class MoteurPhysique():
 
         self.Dict_Commande = {"delta" : 0}
         # Test 
+        
+        
+        
+        # self.Dict_parametres = {"masse": 1.5 , \
+        #                        "inertie": 0*np.diag([0.19,0.15,0.15]),\
+        #                        "alpha0" : 0*np.array([3.44*np.pi/180,3.44*np.pi/180,0,0.0,0]),\
+        #                        "alpha_stall" : 0*0.3391428111 ,                     \
+        #                        "largeur_stall" : 0*30.0*np.pi/180,                  \
+        #                        "wind" : np.array([0,0,0]),                        \
+        #                        "g"    : np.array([0,0,-9.81]),                    \
+        #                        "cp_list":[np.array([0,0.45,0], dtype=np.float),   \
+        #                               np.array([0,-0.45,0], dtype=np.float),      \
+        #                               np.array([-0.5,0.15,0], dtype=np.float),\
+        #                               np.array([-0.5,0.15,0], dtype=np.float),\
+        #                               np.array([0,0,0], dtype=np.float)]}
+            
+        # self.Dict_variables = {"cd0sa" : 0*0.02,\
+        #                        "cd0fp" : 0*0.02,\
+        #                        "cl1fp" : 0*0.3, \
+        #                        "cd1sa" : 0*0.5, \
+        #                        "cl1sa" : 0*5.5, \
+        #                        "cd1fp" : 0*0.3, \
+        #                        "coeff_drag_shift":0*0.5, \
+        #                        "coeff_lift_shift":0*0.5, \
+        #                        "coef_lift_gain":0*0.5}
+            
+        # self.Dict_etats     = {"position" : self.pos,    \
+        #                        "vitesse" : self.speed,   \
+        #                        "acceleration" : self.acc,\
+        #                        "orientation" : self.q,   \
+        #                        "vitesse_angulaire" : self.omega, \
+        #                        "accel_angulaire" : self.omegadot}
+            
+        # self.Dict_Var_Effort = {"Omega" :self.omega,\
+        #                         "R": self.R.flatten(),\
+        #                         "speed": self.speed, \
+        #                         "Cd_list": np.array([0,0,0,0,0]), \
+        #                         "Cl_list": np.array([0,0,0,0,0]), \
+        #                         "Ct": 0*1e-4, \
+        #                         "Cq": 0*1e-6, \
+        #                         "Ch":0*1e-4,  \
+        #                         "rotor_speed": 100}
         print(self.data_save_path)
     
     def orthonormalize(self,R_i):
@@ -207,8 +249,8 @@ class MoteurPhysique():
             
         R=tf3d.quaternions.quat2mat(new_q/tf3d.quaternions.qnorm(new_q))
         self.R=self.orthonormalize(R)
-        self.q=tf3d.quaternions.mat2quat(R)      
-        
+        self.q=tf3d.quaternions.mat2quat(R)    
+        print(self.q)
         "update forces"
         
         self.acc=self.forces/m
@@ -249,7 +291,14 @@ class MoteurPhysique():
                 f.write(first_line)
 
         scope=locals()
-        list_to_write=[(eval(i,scope) for i in keys)]
+        list_to_write=[t,acc[0],acc[1],acc[2],
+              speed[0],speed[1],speed[2],
+              pos[0],pos[1],pos[2],
+              omegadot[0],omegadot[1],omegadot[2],
+              omega[0],omega[1],omega[2],
+              q[0],q[1],q[2],q[3],
+              forces[0],forces[1],forces[2],
+              torque[0],torque[1],torque[2]]
         
         
         
@@ -275,11 +324,11 @@ class MoteurPhysique():
         
         return
 
-Moteur=MoteurPhysique()
+# Moteur=MoteurPhysique()
 
-t0=time.time()
-new_t=t0
-while new_t-t0<2.0:
-    new_t=time.time()
-    Moteur.update_sim(new_t-t0,None)
-    time.sleep(0.01)
+# t0=time.time()
+# new_t=t0
+# while new_t-t0<2.0:
+#     new_t=time.time()
+#     Moteur.update_sim(new_t-t0,None)
+#     time.sleep(0.01)
