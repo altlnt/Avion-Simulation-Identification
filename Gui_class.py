@@ -18,7 +18,7 @@ class Viewer:
     def __init__(self):
         pygame.joystick.init()
         pygame.init()
-        self.app = pg.mkQApp("Sim GUI")
+        self.app = pg.mkQApp()
         ####################################################################
         
         #           Initialisation du widget de visualisation de la rotation
@@ -151,7 +151,7 @@ class Viewer:
         self.joystick_R_vertical = -RV/4  #up -1 / down 1
         
         
-        print(LH,LV,RH,RV)
+        #print(LH,LV,RH,RV)
         
         self.joystick_L_horizontal*=1e3
         self.joystick_L_vertical*=1e3
@@ -166,7 +166,7 @@ class Viewer:
     def update_rot(self):
         
         ## update rotation 
-        self.m1.resetTransform()
+        #self.m1.resetTransform()
     
         ################### récupérer la rotation et la feeder ici 
         # if self.target_q==None:

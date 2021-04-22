@@ -25,10 +25,10 @@ class Simulator():
         joystick_input=np.array([self.viewer.joystick_L_horizontal,
         self.viewer.joystick_L_vertical,
         self.viewer.joystick_R_horizontal,
-        self.viewer.joystick_R_vertical])
+        self.viewer.joystick_R_vertical])        
         
         
-        self.moteur_phy.update_sim(time.time()-self.t0,joystick_input)
+        self.moteur_phy.update_sim(time.time()-self.t0, joystick_input)
         
         self.viewer.target_q=self.moteur_phy.q
         self.viewer.target_pos=self.moteur_phy.pos
