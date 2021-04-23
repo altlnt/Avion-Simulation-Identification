@@ -191,8 +191,8 @@ class Viewer:
             
         # self.new_pos=[np.cos(self.phase),-np.sin(self.phase),np.sin(0.5*self.phase)]
             # 
-        # else:
-        self.new_pos=self.target_pos
+        # else:self.target_pos
+        self.new_pos=np.array([self.target_pos[0],self.target_pos[1],-self.target_pos[2]]) * 0.15
         ###################
     
         self.pos.append(self.new_pos)
@@ -222,7 +222,7 @@ class Viewer:
         self.joystick_R_vertical = -RV/4  #up -1 / down 1
         
         
-        print(LH,LV,RH,RV)
+        # print(LH,LV,RH,RV)
         
         self.joystick_L_horizontal*=1e3
         self.joystick_L_vertical*=1e3

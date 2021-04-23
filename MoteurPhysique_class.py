@@ -37,7 +37,7 @@ class MoteurPhysique():
         #   Translation
         self.forces,self.torque=np.zeros(3),np.zeros(3)
         self.acc=np.zeros(3)
-        self.speed=np.array([20,0,0])
+        self.speed=np.array([15,0,0])
         self.pos=np.zeros(3)
         
         #   Rotation
@@ -48,7 +48,7 @@ class MoteurPhysique():
 
         # Dynamics params
         self.Dict_parametres = {"masse": 5.0 , \
-                               "inertie": np.diag([0.19,0.15,0.15]),\
+                               "inertie": np.diag([0.19,0.15,0.15]) *5,\
                                "alpha0" : np.array([3.44*np.pi/180,3.44*np.pi/180,0,0,3.44*np.pi/180]),\
                                "alpha_stall" : 0.3391428111 ,                     \
                                "largeur_stall" : 30.0*np.pi/180,                  \
@@ -56,19 +56,19 @@ class MoteurPhysique():
                                "g"    : np.array([0,0,9.81]),                    \
                                "cp_list": [np.array([0,0.45,0], dtype=np.float).flatten(), \
                                           np.array([0,-0.45,0], dtype=np.float).flatten(), \
-                                          np.array([-0.3,0.15,0], dtype=np.float).flatten(),\
-                                          np.array([-0.3,-0.15,0], dtype=np.float).flatten(),\
+                                          np.array([-0.5,0.15,0], dtype=np.float).flatten(),\
+                                          np.array([-0.5,-0.15,0], dtype=np.float).flatten(),\
                                           np.array([0,0,0], dtype=np.float).flatten()]}
             
         self.Dict_variables = {"cd0sa" : 0.02,\
                                "cd0fp" : 0.02,\
-                               "cl1fp" : 3.8, \
-                               "cd1sa" : 3.03, \
-                               "cl1sa" : 3.3291466130054017,# \
-                               "cd1fp" : 3.8, \
-                               "coeff_drag_shift":0.5, \
-                               "coeff_lift_shift":0.5, \
-                               "coef_lift_gain":0.5}
+                               "cl1fp" : 1.3, \
+                               "cd1sa" : 2.9, \
+                               "cl1sa" : 0.82, \
+                               "cd1fp" : 1.3, \
+                               "coeff_drag_shift":0.15, \
+                               "coeff_lift_shift":0.15, \
+                               "coef_lift_gain":0.15}
             
         self.Dict_etats     = {"position" : self.pos,    \
                                "vitesse" : self.speed,   \
@@ -84,54 +84,12 @@ class MoteurPhysique():
                                 "Cd_list": np.array([0,0,0,0,0]), \
                                 "Cl_list": np.array([0,0,0,0,0]), \
                                 "Ct": 1e-4, \
-                                "Cq": 1e-6, \
+                                "Cq": 1e-8, \
                                 "Ch": 1e-4,  \
-                                "rotor_speed": 0*200}
+                                "rotor_speed": 400}
 
         self.Dict_Commande = {"delta" : 0}
-        # Test 
-        
-        
-        
-        # self.Dict_parametres = {"masse": 1.5 , \
-        #                        "inertie": 0*np.diag([0.19,0.15,0.15]),\
-        #                        "alpha0" : 0*np.array([3.44*np.pi/180,3.44*np.pi/180,0,0.0,0]),\
-        #                        "alpha_stall" : 0*0.3391428111 ,                     \
-        #                        "largeur_stall" : 0*30.0*np.pi/180,                  \
-        #                        "wind" : np.array([0,0,0]),                        \
-        #                        "g"    : np.array([0,0,-9.81]),                    \
-        #                        "cp_list":[np.array([0,0.45,0], dtype=np.float),   \
-        #                               np.array([0,-0.45,0], dtype=np.float),      \
-        #                               np.array([-0.5,0.15,0], dtype=np.float),\
-        #                               np.array([-0.5,0.15,0], dtype=np.float),\
-        #                               np.array([0,0,0], dtype=np.float)]}
-            
-        # self.Dict_variables = {"cd0sa" : 0*0.02,\
-        #                        "cd0fp" : 0*0.02,\
-        #                        "cl1fp" : 0*0.3, \
-        #                        "cd1sa" : 0*0.5, \
-        #                        "cl1sa" : 0*5.5, \
-        #                        "cd1fp" : 0*0.3, \
-        #                        "coeff_drag_shift":0*0.5, \
-        #                        "coeff_lift_shift":0*0.5, \
-        #                        "coef_lift_gain":0*0.5}
-            
-        # self.Dict_etats     = {"position" : self.pos,    \
-        #                        "vitesse" : self.speed,   \
-        #                        "acceleration" : self.acc,\
-        #                        "orientation" : self.q,   \
-        #                        "vitesse_angulaire" : self.omega, \
-        #                        "accel_angulaire" : self.omegadot}
-            
-        # self.Dict_Var_Effort = {"Omega" :self.omega,\
-        #                         "R": self.R.flatten(),\
-        #                         "speed": self.speed, \
-        #                         "Cd_list": np.array([0,0,0,0,0]), \
-        #                         "Cl_list": np.array([0,0,0,0,0]), \
-        #                         "Ct": 0*1e-4, \
-        #                         "Cq": 0*1e-6, \
-        #                         "Ch":0*1e-4,  \
-        #                         "rotor_speed": 100}
+ 
         print(self.data_save_path)
     
     def orthonormalize(self,R_i):
@@ -148,9 +106,26 @@ class MoteurPhysique():
         r = np.array(( (1,0, 0), (0,c, s),(0,-s, c)) , dtype=np.float)
         return R * r
     
+    def EulerAngle(self, q):
+        # Calcul les angles roll, pitch, yaw en fonction du quaternion, utiliser uniquement pour le plot
+        sinr_cosp = 2 * (q[0] * q[1] + q[2] * q[3])
+        cosr_cosp = 1 - 2 * (q[1] * q[1] + q[2] * q[2])
+        roll = np.arctan2(sinr_cosp, cosr_cosp)
+        
+        sinp = 2 * (q[0] * q[2] - q[3] * q[1])
+        if (abs(sinp) >= 1):
+            pitch = np.sign(np.pi/ 2, sinp) 
+        else:
+            pitch = np.arcsin(sinp)
+        siny_cosp = 2 * (q[0] * q[3] + q[1] * q[2]);
+        cosy_cosp = 1 - 2 * (q[2] * q[2] + q[3] * q[3])
+        yaw = np.arctan2(siny_cosp, cosy_cosp)
+        
+        return np.array([roll,pitch,yaw])
+        
     def compute_alpha_sigma(dragDirection, liftDirection, frontward_Body, VelinLDPlane, alpha_0, alpha_s, delta_s): 
         calpha= np.vdot(dragDirection, frontward_Body)
-        absalpha= -np.acos(calpha)
+        absalpha= -np.arccos(calpha)
         signalpha = np.sign(np.vdot(liftDirection, frontward_Body)) 
         if np.linalg.norm(VelinLDPlane)>1e-7 :
             alpha = signalpha*absalpha 
@@ -182,14 +157,24 @@ class MoteurPhysique():
             # 4 : Coeff_function qui calcul les coeffs aéro pour toutes les surfaces tel que [Cl, Cd]
             # 5 : Effort_Aero qui renvoi un liste tel que [Force, Couple]
         
-        T_init=3    # Temps pendant laquelle les forces ne s'appliquent pas sur le drone
+        T_init=5    # Temps pendant laquelle les forces ne s'appliquent pas sur le drone
         
         
         Effort_function = dill.load(open('fichier_function','rb'))
-        
+        q=0
+        for i in joystick_input:      # Ajout d'une zone morte dans les commandes 
+            if abs(i)<20 :
+                joystick_input[q]=0
+            q+=1
+            
+         # Mise à niveau des commandes pour etre entre -15 et 15 degrés 
+         # (l'input est entre -250 et 250 initialement)
         self.Dict_Commande["delta"] = np.array([-joystick_input[0], joystick_input[0], \
-                                                (joystick_input[1]) , joystick_input[1], 0]) * 15*np.pi/180
-        
+                                                (-joystick_input[1] + joystick_input[2])*0.5 \
+                                                , (+joystick_input[1] +joystick_input[2])*0.5 , 0]) \
+                                                * 15*np.pi/180 / 250 
+        print(self.Dict_Commande["delta"])
+
         
         R_list         = [self.R, self.R, self.Rotation(self.R,45), self.Rotation(self.R,-45), self.R]
         v_W            = self.Dict_parametres["wind"]
@@ -243,7 +228,7 @@ class MoteurPhysique():
                                       self.Dict_Var_Effort["Ct"], self.Dict_Var_Effort["Cq"], \
                                       self.Dict_Var_Effort["Ch"], self.Dict_Var_Effort["rotor_speed"])
     
-            # Les calculs donnes des vecteurs lignes on transpose pour remettre en colone 
+            # Les calculs donnes des vecteurs lignes on transpose pour remettre en colone et dans le repère monde
             self.forces= self.R @ np.transpose(Effort[0].flatten()) +  self.Dict_parametres["g"]
             self.torque = np.transpose(Effort[1]).flatten()   
 
@@ -289,7 +274,8 @@ class MoteurPhysique():
               'omega[0]','omega[1]','omega[2]',
               'q[0]','q[1]','q[2]','q[3]',
               'forces[0]','forces[1]','forces[2]',
-              'torque[0]','torque[1]','torque[2]','alpha','speed_norm' ]
+              'torque[0]','torque[1]','torque[2]','alpha','speed_norm'
+              ,'euler[x]', 'euler[y]', 'euler[z]']
         t=self.last_t
         acc=self.acc
         speed=self.speed
@@ -301,7 +287,8 @@ class MoteurPhysique():
         torque=self.torque
         alpha=self.Dict_etats['alpha']
         speed_norm= np.linalg.norm(speed)
-
+        euler = self.EulerAngle(q)
+   
         if 'log.txt' not in os.listdir(self.data_save_path):
             print("Here: Init")
             first_line=""
@@ -322,7 +309,8 @@ class MoteurPhysique():
               omega[0],omega[1],omega[2],
               q[0],q[1],q[2],q[3],
               forces[0],forces[1],forces[2],
-              torque[0],torque[1],torque[2], alpha,speed_norm]
+              torque[0],torque[1],torque[2], alpha,speed_norm, 
+              euler[0], euler[1], euler[2]]
         
         
         
