@@ -13,7 +13,6 @@ import numpy as np
 import socket
 import pygame
 
-
 class Viewer:
     def __init__(self):
         pygame.joystick.init()
@@ -23,16 +22,16 @@ class Viewer:
         
         #           Initialisation du widget de visualisation de la rotation
         "3D rotation"       
-        self.w_rot = gl.GLViewWidget()
-        self.w_rot.opts['distance'] = 20
-        self.w_rot.setWindowTitle(' ROTATION')
+        # self.w_rot = gl.GLViewWidget()
+        # self.w_rot.opts['distance'] = 20
+        # self.w_rot.setWindowTitle(' ROTATION')
         
-        self.g_rot = gl.GLGridItem()
-        self.w_rot.addItem(self.g_rot)
+        # self.g_rot = gl.GLGridItem()
+        # self.w_rot.addItem(self.g_rot)
         
         self.target_q=np.array([1.0,0.0,0.0,0.0])
         
-        #                   Création de la géométrie (on pourrait mettre un mesh de drone pour être plus "réaliste")
+        #  Création de la géométrie (on pourrait mettre un mesh de drone pour être plus "réaliste")
         
         
         self.verts = np.array([
@@ -54,7 +53,7 @@ class Viewer:
         self.m1 = gl.GLMeshItem(vertexes=self.verts, faces=self.faces, faceColors=self.colors, smooth=False)
         self.m1.translate(0, 0, 0)
         self.m1.setGLOptions('additive')
-        self.w_rot.addItem(self.m1)
+        # self.w_rot.addItem(self.m1)
         
         #                   Callback update de l'affichage de la rotation 
         
@@ -88,6 +87,8 @@ class Viewer:
         
         self.sp1 = gl.GLScatterPlotItem(pos=np.array(self.pos), size=np.array(self.sizes),color=np.array(self.cols), pxMode=False)
         self.w_translation.addItem(self.sp1)
+        self.w_translation.addItem(self.m1)
+
         #                   Callback update de l'affichage de la translation 
         
         ####################################################################
@@ -166,13 +167,15 @@ class Viewer:
     def update_rot(self):
         
         ## update rotation 
-        #self.m1.resetTransform()
     
         ################### récupérer la rotation et la feeder ici 
         # if self.target_q==None:
             # self.m1.rotate(1.0,0.0,np.cos(self.phase),-np.sin(self.phase),"quaternion")
         # else:
-        self.m1.rotate(self.target_q[0],self.target_q[1],self.target_q[2],self.target_q[3],"quaternion")
+        #self.m1.resetTransform()
+
+        self.m1.rotate(self.target_q[0],self.target_q[1],self.target_q[2],self.target_q[3],'quaternion')
+
         ###################
         return
             
@@ -192,7 +195,7 @@ class Viewer:
         # self.new_pos=[np.cos(self.phase),-np.sin(self.phase),np.sin(0.5*self.phase)]
             # 
         # else:self.target_pos
-        self.new_pos=np.array([self.target_pos[0],self.target_pos[1],-self.target_pos[2]]) * 0.15
+        self.new_pos=np.array([self.target_pos[0],self.target_pos[1],-self.target_pos[2]]) * 0.1
         ###################
     
         self.pos.append(self.new_pos)

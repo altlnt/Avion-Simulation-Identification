@@ -44,7 +44,7 @@ for i,key in enumerate([i for i in data.keys() if i!="t"]):
     if "speed_norm" in key:
         cu_ax.set_ylim(1,100)
     if "euler" in key:
-        cu_ax.set_ylim(-4,4)
+        cu_ax.set_ylim(-180,180)
         
         
         
