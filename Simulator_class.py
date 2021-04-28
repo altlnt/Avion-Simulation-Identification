@@ -43,7 +43,7 @@ class Simulator():
         
     def launch_sim(self):
         
-        #self.viewer.w_rot.show()
+        # self.viewer.w_rot.show()
         self.viewer.w_translation.show()
         self.viewer.mw.show()
 

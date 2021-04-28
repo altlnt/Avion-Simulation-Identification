@@ -69,9 +69,8 @@ class Viewer:
         self.w_translation.setWindowTitle('Translation')
         
         self.g_translation = gl.GLGridItem()
+        self.g_translation.setSize(100,100,100)
         self.w_translation.addItem(self.g_translation)
-        
-        
         
         self.pos = [[0,0,0]]
         self.target_pos=None
@@ -88,6 +87,7 @@ class Viewer:
         self.sp1 = gl.GLScatterPlotItem(pos=np.array(self.pos), size=np.array(self.sizes),color=np.array(self.cols), pxMode=False)
         self.w_translation.addItem(self.sp1)
         self.w_translation.addItem(self.m1)
+
 
         #                   Callback update de l'affichage de la translation 
         
@@ -173,9 +173,9 @@ class Viewer:
             # self.m1.rotate(1.0,0.0,np.cos(self.phase),-np.sin(self.phase),"quaternion")
         # else:
         #self.m1.resetTransform()
-
-        self.m1.rotate(self.target_q[0],self.target_q[1],self.target_q[2],self.target_q[3],'quaternion')
-
+        
+        self.m1.rotate(self.target_q[0],self.target_q[1],self.target_q[2],-1*self.target_q[3],'quaternion')
+        self.m1.update()
         ###################
         return
             
@@ -195,13 +195,17 @@ class Viewer:
         # self.new_pos=[np.cos(self.phase),-np.sin(self.phase),np.sin(0.5*self.phase)]
             # 
         # else:self.target_pos
-        self.new_pos=np.array([self.target_pos[0],self.target_pos[1],-self.target_pos[2]]) * 0.1
+        self.new_pos=np.array([self.target_pos[0],self.target_pos[1],-self.target_pos[2]]) * 0.15
         ###################
-    
+        dx = self.new_pos[0] - self.pos[-1][0]
+        dy = self.new_pos[1] - self.pos[-1][1]
+        dz = self.new_pos[2] - self.pos[-1][2]
+        
         self.pos.append(self.new_pos)
+
         self.sp1.setData(pos=np.array(self.pos), color=np.array(self.cols),size=np.array(self.sizes))
-
-
+        self.m1.translate(dx, dy, dz)
+        self.w_translation.setCameraPosition(pos=QtGui.QVector3D(self.new_pos[0], self.new_pos[1], self.new_pos[2]))
         # Callback l'appli 
         return
     
