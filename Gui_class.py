@@ -12,6 +12,7 @@ import pyqtgraph.opengl as gl
 import numpy as np
 import socket
 import pygame
+import transforms3d as tf3d 
 
 class Viewer:
     def __init__(self):
@@ -30,7 +31,7 @@ class Viewer:
         # self.w_rot.addItem(self.g_rot)
         
         self.target_q=np.array([1.0,0.0,0.0,0.0])
-        
+        self.target_R=tf3d.quaternions.quat2mat(self.target_q)
         #  Création de la géométrie (on pourrait mettre un mesh de drone pour être plus "réaliste")
         
         
@@ -174,8 +175,7 @@ class Viewer:
         # else:
         #self.m1.resetTransform()
         
-        self.m1.rotate(self.target_q[0],self.target_q[1],self.target_q[2],-1*self.target_q[3],'quaternion')
-        self.m1.update()
+
         ###################
         return
             
@@ -204,7 +204,15 @@ class Viewer:
         self.pos.append(self.new_pos)
 
         self.sp1.setData(pos=np.array(self.pos), color=np.array(self.cols),size=np.array(self.sizes))
-        self.m1.translate(dx, dy, dz)
+        self.target_R=tf3d.quaternions.quat2mat(self.target_q)
+        TR=np.eye(4)
+        TR[:3,:3]=np.diag([1.0,1.0,-1.0])@self.target_R
+        TR[:-1,-1]=self.new_pos
+        
+        
+        self.m1.setTransform(TR)
+        self.m1.update()    
+    
         self.w_translation.setCameraPosition(pos=QtGui.QVector3D(self.new_pos[0], self.new_pos[1], self.new_pos[2]))
         # Callback l'appli 
         return
