@@ -25,8 +25,15 @@ Simulator_Class.py = Cette classe fait le lien entre le moteur physique et la cl
 
 
 
-Pour lancer une simulation, dans un premier temps il est nécessaire de lancer le scripts "equation_générator.ipynb" et vérifier que le fichier de fonction à bien été écrit. Ensuite, il suffit de brancher une manette et de lancer le fichier "Simulator_Class.py", la simulation va se lancer, et pendant un certain temps le drone va avancer sans ressentir de forces (ce temps est inscrit dans le moteur physique dans le calcul des forces), puis après les forces vont agir et on pourra le piloter manuellement. Il est possible de changer les paramètres physiques du drones dans la classe du moteur physique. Cependant certaines équations peuvent changer (par exemple si on souhaite modifier les différentes surfaces portantes, ou encore la positions des moteurs), dans ce cas il faut modifier le fichier "equation_generator.ioynb", et le relancer pour avoir les équations correspondantes. Une fois fait, on peut relancer la simulation directement. 
+Pour lancer une simulation, dans un premier temps il est nécessaire de lancer le scripts "equation_générator.ipynb" et vérifier que le fichier de fonctions a bien été écrit. Ensuite, il suffit de brancher une manette et de lancer le fichier "Simulator_Class.py", la simulation va se lancer, et pendant un certain temps (par défault 5s) le drone va avancer sans ressentir de forces (ce temps est inscrit dans le moteur physique dans le calcul des forces). 
+Par la suite, les forces vont agir et on pourra le piloter manuellement. Il est possible de changer les paramètres physiques du drones dans la classe du moteur physique (seules les valeurs des aires sont à modififier dans le script "equation_generator" et le relancer pour avoir les équations correspondantes). Une fois fait, on peut relancer la simulation directement. 
 
+Pour le pilotatge manuel : 
+	- joystick gauche horizontale = roll
+	- joystick gauche vertical = pitch
+	- joystick droite horizontale = yaw
+ 	- joystick drotie vericale = vitesse des moteurs
+Si le drone n'est pas assez réactif, ou à l'inverse il l'est trop, il suffit d'ajuster les gains des ailerons de controle (k0, k1, k2) ou les inerties correspondantes.
 
 
 

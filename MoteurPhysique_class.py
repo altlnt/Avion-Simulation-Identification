@@ -37,7 +37,7 @@ class MoteurPhysique():
         #   Translation
         self.forces,self.torque=np.zeros(3),np.zeros(3)
         self.acc=np.zeros(3)
-        self.speed=np.array([20,0,0])
+        self.speed=np.array([15,0,0])
         self.pos=np.zeros(3)
         
         #   Rotation
@@ -45,31 +45,31 @@ class MoteurPhysique():
         self.omega=np.array([0,0,0])
         self.q=np.array([1.0,0.0,0.0,0.0])
         self.R=tf3d.quaternions.quat2mat(self.q) 
-        self.moy_rotor_speed = 230
+        self.moy_rotor_speed = 300
 
         # Dynamics params
         self.Dict_parametres = {"masse": 5.0 , \
-                               "inertie": np.diag([0.35,0.25,0.55]) *5,\
-                               "alpha0" : np.array([3.44*np.pi/180,3.44*np.pi/180,0,0,3.44*np.pi/180]),\
+                               "inertie": np.diag([0.1,0.05,0.2])*5,\
+                               "alpha0" : np.array([4.01*np.pi/180,4.01*np.pi/180,0,0,4.01*np.pi/180]),\
                                "alpha_stall" : 0.3391428111 ,                     \
                                "largeur_stall" : 30.0*np.pi/180,                  \
                                "wind" : np.array([0,0,0]),                        \
                                "g"    : np.array([0,0,9.81]),                    \
                                "cp_list": [np.array([0,0.45,0], dtype=np.float).flatten(), \
                                           np.array([0,-0.45,0], dtype=np.float).flatten(), \
-                                          np.array([-0.5,0.25,0], dtype=np.float).flatten(),\
-                                          np.array([-0.5,-0.25,0], dtype=np.float).flatten(),\
+                                          np.array([-0.5,0.15,0], dtype=np.float).flatten(),\
+                                          np.array([-0.5,-0.15,0], dtype=np.float).flatten(),\
                                           np.array([0,0,0], dtype=np.float).flatten()]}
             
-        self.Dict_variables = {"cd0sa" : 0.02,\
-                               "cd0fp" : 0.02,\
-                               "cl1fp" : 0.82, \
-                               "cd1sa" : 2.9, \
-                               "cl1sa" : 1.3, \
+        self.Dict_variables = {"cd0sa" : 0.045,\
+                               "cd0fp" : 0.045,\
+                               "cl1fp" : 2.5, \
+                               "cd1sa" : 4.55, \
+                               "cl1sa" : 5, \
                                "cd1fp" : 2.5, \
-                               "coeff_drag_shift": 0.55, \
-                               "coeff_lift_shift": 0.55, \
-                               "coef_lift_gain": 3.8}
+                               "coeff_drag_shift": 1, \
+                               "coeff_lift_shift": 5, \
+                               "coef_lift_gain": 5}
             
         self.Dict_etats     = {"position" : self.pos,    \
                                "vitesse" : self.speed,   \
@@ -83,7 +83,7 @@ class MoteurPhysique():
                                 "speed": self.speed, \
                                 "Cd_list": np.array([0,0,0,0,0]), \
                                 "Cl_list": np.array([0,0,0,0,0]), \
-                                "Ct": 1e-4, \
+                                "Ct": 2.5e-5, \
                                 "Cq": 1e-8, \
                                 "Ch": 1e-4}
             
@@ -122,30 +122,6 @@ class MoteurPhysique():
         yaw = np.arctan2(siny_cosp, cosy_cosp)
         
         return np.array([roll,pitch,yaw])
-        
-    def compute_alpha_sigma(dragDirection, liftDirection, frontward_Body, VelinLDPlane, alpha_0, alpha_s, delta_s): 
-        calpha= np.vdot(dragDirection, frontward_Body)
-        absalpha= -np.arccos(calpha)
-        signalpha = np.sign(np.vdot(liftDirection, frontward_Body)) 
-        if np.linalg.norm(VelinLDPlane)>1e-7 :
-            alpha = signalpha*absalpha 
-        else :
-            alpha=0
-        if np.abs(alpha)>0.5*np.pi:
-            if alpha>0 :alpha=alpha-np.pi 
-            else: alpha=alpha+np.pi
-                
-        if alpha>=alpha_s+delta_s:
-             sigma=0.0
-        elif alpha>=alpha_s:
-             sigma=0.5*(1.0+np.cos(np.pi*(alpha+alpha_0-alpha_s)/delta_s))
-        elif alpha>=-alpha_s:
-             sigma=1.0
-        elif alpha>=-alpha_s-delta_s:
-             sigma=0.5*(1.0+np.cos(np.pi*(alpha+alpha_0+alpha_s)/delta_s))
-        else:
-             sigma=0.0
-        return float(alpha), float(sigma)
 
     
     def compute_dynamics(self,joystick_input,t):
@@ -163,17 +139,17 @@ class MoteurPhysique():
         Effort_function = dill.load(open('fichier_function','rb'))
         q=0
         for i in joystick_input:      # Ajout d'une zone morte dans les commandes 
-            if abs(i)<20 :
+            if abs(i)<40 :
                 joystick_input[q]=0
             else : joystick_input[q]=joystick_input[q]/250
             q+=1
 
          # Mise à niveau des commandes pour etre entre -15 et 15 degrés 
          # (l'input est entre -250 et 250 initialement)
-        self.Dict_Commande["delta"] = np.array([-joystick_input[0]*0, joystick_input[0]*0, \
-                                                (-joystick_input[1] + joystick_input[2]*0)*0.5 \
-                                                , (-joystick_input[1] - joystick_input[2]*0.0)*0.5 , 0]) \
-                                                * 30 *np.pi/180
+        self.Dict_Commande["delta"] = np.array([joystick_input[0], -joystick_input[0], \
+                                                (joystick_input[1] + joystick_input[2]) \
+                                                , (joystick_input[1] - joystick_input[2]) , 0]) \
+                                                * 15 *np.pi/180
         
         R_list         = [self.R, self.R, self.Rotation(self.R,45), self.Rotation(self.R,-45), self.R]
         v_W            = self.Dict_parametres["wind"]
@@ -207,21 +183,22 @@ class MoteurPhysique():
                 alpha, sigma = Effort_function[3](dragDirection, liftDirection, frontward_Body, VelinLDPlane,\
                                                   alpha_0_list[p], alpha_s, delta_s)
 
-                cl[p] =Effort_function[4](alpha, sigma, alpha_0_list[p],\
+                cl[p] =Effort_function[4](alpha + (k0* self.Dict_Commande["delta"][p]), sigma, alpha_0_list[p],\
                                                 self.Dict_Commande["delta"][p], \
-                                                cl1sa, cd1fp,k1, k2, cd0fp, \
-                                                     cd0sa, cd1sa, cd1fp, k0)[0]
-                cd[p] =Effort_function[4](alpha, sigma, alpha_0_list[p],\
+                                                cl1sa, cd1fp,k2, cd0fp, \
+                                                     cd0sa, cd1sa, cd1fp)[0]
+                cd[p] =Effort_function[4](alpha + (k1* self.Dict_Commande["delta"][p]), sigma, alpha_0_list[p],\
                                                 self.Dict_Commande["delta"][p], \
-                                                cl1sa, cd1fp,k1, k2, cd0fp, \
-                                                     cd0sa, cd1sa, cd1fp, k0)[1]
+                                                cl1sa, cd1fp,k2, cd0fp, \
+                                                     cd0sa, cd1sa, cd1fp)[1]
+
                 p+=1
-                
+
             self.Dict_etats['alpha'] = alpha
             self.Dict_Var_Effort["Cl_list"]=cl
             self.Dict_Var_Effort["Cd_list"]=cd
-            commande_rotor = self.Dict_Commande["rotor_speed"] + (joystick_input[3] * self.moy_rotor_speed )
-            print(commande_rotor)
+            commande_rotor = self.Dict_Commande["rotor_speed"] + (joystick_input[3] * self.moy_rotor_speed)
+
             Effort=Effort_function[5](self.omega, self.R.flatten(), self.speed.flatten(),\
                                       v_W, self.Dict_parametres['cp_list'],\
                                       self.Dict_Var_Effort["Cd_list"], \
@@ -231,7 +208,7 @@ class MoteurPhysique():
     
             # Les calculs donnes des vecteurs lignes on transpose pour remettre en colone et dans le repère monde
             self.forces= self.R @ np.transpose(Effort[0].flatten()) +  self.Dict_parametres["g"]
-            self.torque = np.transpose(Effort[1]).flatten()   
+            self.torque = np.transpose(Effort[1]).flatten()  
 
     def update_state(self,dt):
         
@@ -289,8 +266,7 @@ class MoteurPhysique():
         alpha=self.Dict_etats['alpha']
         speed_norm= np.linalg.norm(speed)
         euler = self.EulerAngle(q) * 180/np.pi
-        print("roll :", euler[0], ' , pich :', euler[1], ' , yaw : ', euler[2])
-   
+
         if 'log.txt' not in os.listdir(self.data_save_path):
             print("Here: Init")
             first_line=""

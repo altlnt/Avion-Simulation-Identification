@@ -195,12 +195,8 @@ class Viewer:
         # self.new_pos=[np.cos(self.phase),-np.sin(self.phase),np.sin(0.5*self.phase)]
             # 
         # else:self.target_pos
-        self.new_pos=np.array([self.target_pos[0],self.target_pos[1],-self.target_pos[2]]) * 0.15
-        ###################
-        dx = self.new_pos[0] - self.pos[-1][0]
-        dy = self.new_pos[1] - self.pos[-1][1]
-        dz = self.new_pos[2] - self.pos[-1][2]
-        
+        self.new_pos=np.array([self.target_pos[0],-self.target_pos[1],-self.target_pos[2]]) *0.3
+        ###################        
         self.pos.append(self.new_pos)
 
         self.sp1.setData(pos=np.array(self.pos), color=np.array(self.cols),size=np.array(self.sizes))
