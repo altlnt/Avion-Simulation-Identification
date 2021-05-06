@@ -195,7 +195,7 @@ class Viewer:
         # self.new_pos=[np.cos(self.phase),-np.sin(self.phase),np.sin(0.5*self.phase)]
             # 
         # else:self.target_pos
-        self.new_pos=np.array([self.target_pos[0],-self.target_pos[1],-self.target_pos[2]]) *0.3
+        self.new_pos=np.array([self.target_pos[0],self.target_pos[1],-self.target_pos[2]]) *0.3
         ###################        
         self.pos.append(self.new_pos)
 
