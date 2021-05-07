@@ -30,6 +30,21 @@ class Simulator():
         
         self.moteur_phy.update_sim(time.time()-self.t0, joystick_input)
         
+        if time.time()-self.t0<self.moteur_phy.T_init:
+            
+            r,g,b,alpha=1.0,0.0,0.0,1.0
+            self.viewer.g_translation.setColor((r,g,b,alpha))
+            
+        elif self.moteur_phy.takeoff==0:
+            
+            r,g,b,alpha=1.0,1.0,0.0,1.0
+            self.viewer.g_translation.setColor((r,g,b,alpha))
+            
+        elif self.moteur_phy.takeoff>0:
+            
+            r,g,b,alpha=0.0,1.0,0.0,1.0
+            self.viewer.g_translation.setColor((r,g,b,alpha))
+            
         self.viewer.target_q=self.moteur_phy.q
         self.viewer.target_pos=self.moteur_phy.pos
         

@@ -31,7 +31,7 @@ class MoteurPhysique():
         # Miscellaneous
         self.data_save_path=save_path
         self.last_t=0.0
-        
+        self.T_init=1.0
         # Body state
         
         #   Translation
@@ -134,7 +134,7 @@ class MoteurPhysique():
             # 4 : Coeff_function qui calcul les coeffs aéro pour toutes les surfaces tel que [Cl, Cd]
             # 5 : Effort_Aero qui renvoi un liste tel que [Force, Couple]
         
-        T_init=1    # Temps pendant laquelle les forces ne s'appliquent pas sur le drone
+        T_init=self.T_init    # Temps pendant laquelle les forces ne s'appliquent pas sur le drone
         
         
         Effort_function = dill.load(open('fichier_function','rb'))
