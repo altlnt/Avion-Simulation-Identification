@@ -13,6 +13,7 @@ import numpy as np
 import socket
 import pygame
 import transforms3d as tf3d 
+from PIL import Image 
 
 class Viewer:
     def __init__(self):
@@ -37,20 +38,25 @@ class Viewer:
         
         self.verts = np.array([
             [1, 0, 0],
-            [0, 1, 0],
-            [0,-1,0],
+            [0, 1.5, 0],
+            [0,-1.5,0],
             [-0.5,0,0],
             [-0.75,-0.5,0],
-            [-0.75, 0.5, 0]
+            [-0.75, 0.5, 0],
+            [-0.75,0,-0.5],
+            [-0.75,0,0]
         ])
+        self.verts*=1.5
         self.faces = np.array([
             [0, 1, 2],
-            [3, 4, 5]
+            [3, 4, 5],
+            [3, 6, 7]
         
         ])
         self.colors = np.array([
-            [1, 0, 0, 0.3],
-            [0, 1, 0, 0.3]])
+            [1, 0, 0, 0.9],
+            [0, 1, 0, 0.9],
+            [0, 0, 1, 0.9]])
         
         self.m1 = gl.GLMeshItem(vertexes=self.verts, faces=self.faces, faceColors=self.colors, smooth=False)
         self.m1.translate(0, 0, 0)
@@ -65,10 +71,15 @@ class Viewer:
         #           Initialisation du widget de visualisation de la translation
         
         "2d translation"
-        
+        img = Image.open('background.png') 
+        img=np.asarray(img) 
+        v1 = gl.GLImageItem(img) 
+        v1.translate(-img.shape[0]/2, -img.shape[1]/2, 0) 
+
         self.w_translation = gl.GLViewWidget()
         self.w_translation.opts['distance'] = 20
         self.w_translation.setWindowTitle('Translation')
+        self.w_translation.addItem(v1)
         
         self.g_translation = gl.GLGridItem()
         self.g_translation.setSize(100,100,100)
@@ -77,10 +88,10 @@ class Viewer:
         self.pos = [[0,0,0]]
         self.target_pos=None
         
-        self.Msize=0.6
+        self.Msize=0.001
         self.Mcolor=(1.0,1.0,0.0,1.0)
-        self.size=0.3
-        self.color=(1.0,0.0,0.0,0.5)
+        self.size=0.1
+        self.color=(1.0,0.0,0.0,0.2)
         
         self.cols=[self.Mcolor]
         self.sizes=[self.Msize]
@@ -206,13 +217,14 @@ class Viewer:
         TR[:3,:3]=np.diag([1.0,1.0,-1.0])@self.target_R
         TR[:-1,-1]=self.new_pos
         
-        
         self.m1.setTransform(TR)
         self.m1.update()    
-    
-        self.w_translation.setCameraPosition(pos=QtGui.QVector3D(self.new_pos[0], self.new_pos[1], self.new_pos[2]))
-        # Callback l'appli 
-        return
+        self.w_translation.opts['rotation'] = self.target_q
+        self.w_translation.setCameraPosition(pos=QtGui.QVector3D(self.new_pos[0], \
+                                                                 self.new_pos[1], \
+                                                                 self.new_pos[2]),\
+                                             rotation=QtGui.QVector4D(self.target_q[0],self.target_q[1]\
+                                                                      ,self.target_q[2],self.target_q[3]))
     
     def update_joysticks(self):
         pygame.event.get()

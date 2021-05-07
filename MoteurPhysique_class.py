@@ -37,7 +37,7 @@ class MoteurPhysique():
         #   Translation
         self.forces,self.torque=np.zeros(3),np.zeros(3)
         self.acc=np.zeros(3)
-        self.speed=np.array([1,0,0])
+        self.speed=np.array([0.01,0,0])
         self.pos=np.zeros(3)
         
         #   Rotation

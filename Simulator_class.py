@@ -42,7 +42,7 @@ class Simulator():
             
         elif self.moteur_phy.takeoff>0:
             
-            r,g,b,alpha=0,255,0,100
+            r,g,b,alpha=0,255,0,50
             self.viewer.g_translation.setColor((r,g,b,alpha))
             
         self.viewer.target_q=self.moteur_phy.q
