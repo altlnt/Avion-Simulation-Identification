@@ -32,17 +32,17 @@ class Simulator():
         
         if time.time()-self.t0<self.moteur_phy.T_init:
             
-            r,g,b,alpha=1.0,0.0,0.0,1.0
+            r,g,b,alpha=255,0,0,100
             self.viewer.g_translation.setColor((r,g,b,alpha))
             
         elif self.moteur_phy.takeoff==0:
             
-            r,g,b,alpha=1.0,1.0,0.0,1.0
+            r,g,b,alpha=255,255,0,100
             self.viewer.g_translation.setColor((r,g,b,alpha))
             
         elif self.moteur_phy.takeoff>0:
             
-            r,g,b,alpha=0.0,1.0,0.0,1.0
+            r,g,b,alpha=0,255,0,100
             self.viewer.g_translation.setColor((r,g,b,alpha))
             
         self.viewer.target_q=self.moteur_phy.q
