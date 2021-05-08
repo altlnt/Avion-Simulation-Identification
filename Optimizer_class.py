@@ -15,7 +15,7 @@ import transforms3d as tf3d
 from MoteurPhysique_class import MoteurPhysique
 from scipy.optimize import minmize
 import pandas as pd 
-
+from OptiMonitor_class import OptiMonitor
 
 class Optimizer():
     
