@@ -14,7 +14,7 @@ datadir=sort(os.listdir(os.path.join(os.getcwd(),"sim_logs")))[-1]
 
 data=pd.read_csv(os.path.join(os.getcwd(),"sim_logs",datadir,"log.txt"))
 
-f,axes=plt.subplots(nrows=6,ncols=5)
+f,axes=plt.subplots(nrows=5,ncols=6)
 
 for i,key in enumerate([i for i in data.keys() if i!="t"]):
     
@@ -41,10 +41,7 @@ for i,key in enumerate([i for i in data.keys() if i!="t"]):
         cu_ax.set_ylim(-100,100)
     if "alpha" in key:
         cu_ax.set_ylim(-2,2)
-    if "speed_norm" in key:
-        cu_ax.set_ylim(1,100)
-    if "euler" in key:
-        cu_ax.set_ylim(-180,180)
-        
-        
+    if "joystick" in key:
+        cu_ax.set_ylim(-250,250)
+
         
