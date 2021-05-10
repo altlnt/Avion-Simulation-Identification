@@ -10,9 +10,9 @@ from pylab import *
 import os
 import matplotlib.pyplot as plt
 %matplotlib qt
-datadir=sort(os.listdir(os.path.join(os.getcwd(),"sim_logs")))[-1]
+datadir=sort(os.listdir(os.path.join(os.getcwd(),"Logs")))[-1]
 
-data=pd.read_csv(os.path.join(os.getcwd(),"sim_logs",datadir,"log.txt"))
+data=pd.read_csv(os.path.join(os.getcwd(),"Logs",datadir,"log.txt"))
 
 f,axes=plt.subplots(nrows=5,ncols=6)
 

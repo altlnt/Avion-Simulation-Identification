@@ -61,7 +61,6 @@ class Viewer:
         self.m1 = gl.GLMeshItem(vertexes=self.verts, faces=self.faces, faceColors=self.colors, smooth=False)
         self.m1.translate(0, 0, 0)
         self.m1.setGLOptions('additive')
-        # self.w_rot.addItem(self.m1)
         
         #                   Callback update de l'affichage de la rotation 
         
@@ -116,17 +115,7 @@ class Viewer:
         self.mw.setCentralWidget(self.cw)
         self.layout = QtGui.QGridLayout()
         self.cw.setLayout(self.layout)
-        
-        
-        # self.mw = gl.GLViewWidget()
-        # self.mw.opts['distance'] = 20
-        # self.mw.setWindowTitle('JoystickButton')
-        # self.cw = QtGui.QWidget()
-        # self.layout = QtGui.QGridLayout()
-        # self.cw.setLayout(self.layout)
-        # self.mw.show()
-        
-        
+
         self.jb_l = pg.JoystickButton()
         self.jb_l.setFixedWidth(50)
         self.jb_l.setFixedHeight(50)
@@ -176,20 +165,6 @@ class Viewer:
         self.jb_r.setState(self.joystick_R_horizontal,self.joystick_R_vertical)
         
         return
-    
-    def update_rot(self):
-        
-        ## update rotation 
-    
-        ################### récupérer la rotation et la feeder ici 
-        # if self.target_q==None:
-            # self.m1.rotate(1.0,0.0,np.cos(self.phase),-np.sin(self.phase),"quaternion")
-        # else:
-        #self.m1.resetTransform()
-        
-
-        ###################
-        return
             
     def update_translation(self,new_position=None):
         
@@ -201,12 +176,6 @@ class Viewer:
     
     
         ################### récupérer la position du modèle et la feeder ici
-    
-        # if self.target_pos==None:
-            
-        # self.new_pos=[np.cos(self.phase),-np.sin(self.phase),np.sin(0.5*self.phase)]
-            # 
-        # else:self.target_pos
         self.new_pos=np.array([self.target_pos[0],self.target_pos[1],-self.target_pos[2]]) *0.3
         ###################        
         self.pos.append(self.new_pos)
@@ -245,20 +214,14 @@ class Viewer:
         self.joystick_R_horizontal = RH/4#left -1 / right 1
         self.joystick_R_vertical = -RV/4  #up -1 / down 1
         
-        
-        # print(LH,LV,RH,RV)
-        
+                
         self.joystick_L_horizontal*=1e3
         self.joystick_L_vertical*=1e3
         self.joystick_R_horizontal*=1e3
         self.joystick_R_vertical*=1e3
     
         self.jb_l.setState(self.joystick_L_horizontal,self.joystick_L_vertical)
-        self.jb_r.setState(self.joystick_R_horizontal,self.joystick_R_vertical)
-        # self.jb_l.setState(250*np.cos(self.phase),250*np.sin(self.phase))
-        # self.jb_r.setState(-250*np.sin(self.phase),250*np.cos(self.phase))
-        
-        
+        self.jb_r.setState(self.joystick_R_horizontal,self.joystick_R_vertical)        
         
         return
         

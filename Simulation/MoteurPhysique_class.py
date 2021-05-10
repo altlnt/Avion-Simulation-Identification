@@ -12,24 +12,21 @@ import time
 from datetime import datetime
 import transforms3d as tf3d
 import dill as dill
-
+import json
 
 dill.settings['recurse'] = True
 
 
-savepath_base=os.path.join(os.getcwd(),"sim_logs",datetime.now().strftime("%Y_%m_%d_%Hh%Mm%Ss"))
-
 class MoteurPhysique():
-    
-    def __init__(self,save_path=savepath_base):
+    def __init__(self):
+        self.save_path_base=os.path.join("../Logs",datetime.now().strftime("%Y_%m_%d_%Hh%Mm%Ss"))
+
         
-        try:
-            os.system("mkdir -p "+savepath_base)
-        except:
-            pass
+        os.makedirs(self.save_path_base)
+ 
         
         # Miscellaneous
-        self.data_save_path=save_path
+        self.data_save_path=self.save_path_base
         self.last_t=0.0
         self.T_init=1.0
         # Body state
@@ -48,14 +45,14 @@ class MoteurPhysique():
         self.moy_rotor_speed = 200
         self.takeoff =0
         
-        self.Effort_function = dill.load(open('fichier_function','rb'))
+        self.Effort_function = dill.load(open('function_moteur_physique','rb'))
         self.joystick_input = [0,0,0,0,0]
 
-        # Dynamics params
+        ####### Dictionnaire des paramètres du monde 
         self.Dict_world     = {"wind" : np.array([0,0,0]),                        \
                                "g"    : np.array([0,0,9.81]),                    \
                                }
-            
+        ####### Dictionnaire des paramètres pour l'optimisation
         self.Dict_variables = {"masse": 2.5 , \
                                "inertie": np.diag([0.2,0.15,0.15]),\
                                "cp_list": [np.array([0,0.45,0],       dtype=np.float).flatten(), \
@@ -79,6 +76,7 @@ class MoteurPhysique():
                                "Cq": 1e-8, \
                                "Ch": 1e-4}
             
+        # Dictionnaires des états
         self.Dict_etats     = {"position" : self.pos,    \
                                "vitesse" : self.speed,   \
                                "acceleration" : self.acc,\
@@ -96,6 +94,16 @@ class MoteurPhysique():
         self.Dict_Commande = {"delta" : 0,\
                               "rotor_speed" : self.moy_rotor_speed }
  
+        self.SaveDict={} 
+
+        for dic in [self.Dict_world,self.Dict_variables]:
+            keys=dic.keys() 
+            for key in keys:
+                self.SaveDict[key]=np.array(dic[key]).tolist()
+
+        with open(os.path.join(self.save_path_base,'params.json'), 'w') as fp:
+            json.dump(self.SaveDict, fp)
+        
         print(self.data_save_path)
     
     def orthonormalize(self,R_i):
@@ -294,18 +302,7 @@ class MoteurPhysique():
             first_line=first_line+"\n"
             with open(os.path.join(self.data_save_path,"log.txt"),'a') as f:
                 f.write(first_line)
-            
-        if 'log_params.txt' not in os.listdir(self.data_save_path):
-            first_line=""
-            for key, valeur in self.Dict_world.items():
-                first_line=first_line+key+" = "+str(valeur)    
-                first_line=first_line+"\n"
-            for key,valeur in self.Dict_variables.items():
-                first_line=first_line+key+" = "+str(valeur)    
-                first_line=first_line+"\n"
-            with open(os.path.join(self.data_save_path,"log_params.txt"),'a') as f:
-                f.write(first_line)
-
+        
         scope=locals()
         list_to_write=[t,acc[0],acc[1],acc[2],
               speed[0],speed[1],speed[2],
