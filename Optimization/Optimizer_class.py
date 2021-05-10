@@ -12,12 +12,17 @@ import numpy as np
 import os
 import time
 from datetime import datetime
+
 import transforms3d as tf3d
 from Simulation.MoteurPhysique_class import MoteurPhysique
-from scipy.optimize import minimize
+
+
+
 import pandas as pd 
 # from OptiMonitor_class import OptiMonitor
-import regex as re
+import json
+
+
 
 class Optimizer():
     
@@ -32,26 +37,44 @@ class Optimizer():
         
         
         
-        self.log_dir_path="../Logs/2021_05_10_12h21m18s"
+        self.log_dir_path="../Logs/2021_05_10_16h13m12s"
         self.log_path=os.path.join(self.log_dir_path,"log.txt")        
-        self.true_params_path=os.path.join(self.log_dir_path,"log_params.txt")
+        self.true_params_path=os.path.join(self.log_dir_path,"params.json")
         
-        # self.moteur_physique=MoteurPhysique()
-        
-           
+        with open(self.true_params_path,"r") as f:
+            self.true_params=json.load( f)
+
         
         self.raw_data=pd.read_csv(self.log_path)
-        self.true_params={}
+        # print(self.true_params)
         
-        with open(self.true_params_path, 'r') as f:
-            s = f.readlines()
-        split_list=[i.split("=") for i in s]
-        # for i in split_list:
-        #     key=i[0]
-        #     # val=i[1].replace("\n","")
-        #     print(key)
+        # self.moteur_physique=MoteurPhysique()
+
+        print()
+         
+    def prepare_data(self):
+        temp_df=self.raw_data.drop(columns=['t','alpha'])
+        temp_df=temp_df.drop(columns=[i for i in temp_df.keys() if 'omegadot' in i])
+        for i in temp_df.keys():
+            temp_df[i.replace('[','_').replace(']','')]=temp_df[i]
+            temp_df=temp_df.drop(columns=[i])
+            
+        new_temp_df=pd.DataFrame()
         
-        print(split_list)
+        for i in temp_df.keys():
+            if ('acc' in i) or ('torque' in i):
+                new_temp_df[i]=temp_df[i][1:].values
+            else:
+                new_temp_df[i]=temp_df[i][:-1].values
+            
+        self.data_prepared=new_temp_df
+        
+        self.X=self.data_prepared[[i for i in self.data_prepared.keys() if not (('acc' in i) or ('torque' in i))]]
+        
+        
+        self.Y=self.data_prepared[[i for i in self.data_prepared.keys() if (('acc' in i) or ('torque' in i))]]
+
+        return        
     # def init_optimization(self):
         
         
@@ -70,4 +93,7 @@ class Optimizer():
     
     
     
-Optimizer()
+O=Optimizer()
+O.prepare_data()
+
+print(O.raw_data,O.X,O.Y,O.data_prepared)
