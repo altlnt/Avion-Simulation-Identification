@@ -47,18 +47,12 @@ class Simulator():
             
         self.viewer.target_q=self.moteur_phy.q
         self.viewer.target_pos=self.moteur_phy.pos
-        
-        # phase=time.time()-self.t0
-        # self.viewer.target_q=np.array([1.0,0.0,np.cos(phase),-np.sin(phase)])
-        # self.viewer.target_pos=[np.cos(phase),-np.sin(phase),np.sin(0.5*phase)]
 
-        self.viewer.update_rot()
         self.viewer.update_translation()
         self.viewer.update_joysticks()        
         
     def launch_sim(self):
         
-        # self.viewer.w_rot.show()
         self.viewer.w_translation.show()
         self.viewer.mw.show()
 
