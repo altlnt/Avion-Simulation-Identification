@@ -9,27 +9,35 @@ Created on Mon May 10 11:21:48 2021
 
 import numpy as np
 from sklearn.base import BaseEstimator
-
+import transforms3d as tf3d
 from scipy.optimize import minimize
 from sklearn.model_selection import GridSearchCV
 
 class ModelRegressor(BaseEstimator):  
     """An example of classifier"""
 
-    def __init__(self, MoteurPhysique=None,train_batch_size=1):
+    def __init__(self, Dict_variables=None,train_batch_size=1):
         """
         Called when initializing the classifier
         """
        
-        self.MoteurPhysique=MoteurPhysique
-
+        self.MoteurPhysique=MoteurPhysique()
+        if Dict_variables!=None:
+            self.MoteurPhysique.Dict_variables=Dict_variables
     
     def loss(self,arg):
         
         return np.linalg.norm((self.fd_y-(arg[0]*self.fd_x+arg[1]))**2)
 
-    def _model(self, x, params):
-        output = params[0] * x + params[1]
+    def _model(self, x):
+        
+        self.MoteurPhysique.speed=np.array([x["speed_%i"%(i)] for i in range(3)])
+        self.MoteurPhysique.q=np.array([x["q_%i"%(i)] for i in range(4)])
+        self.MoteurPhysique.omega=np.array([x["omega_%i"%(i)] for i in range(4)])
+        self.MoteurPhysique.R=tf3d.quaternions.quat2mat(self.MoteurPhysique.q)
+        
+        joystick_input=np.array([x['joystick_%i'%(i)] for i in range(4)])
+        self.MoteurPhysique.compute_dynamics(joystick_input,x['t'])
         return output 
 
     def score(self,X,y):
@@ -87,7 +95,7 @@ class TestRegressor(BaseEstimator):
         """
         self.param_a = param_a
         self.param_b = param_b
-
+        self.param_c=0
 
     def loss(self,arg):
         print(arg)
@@ -141,3 +149,4 @@ class TestRegressor(BaseEstimator):
         print("Optimization result:\n\n",res)
         self.param_a,self.param_b = res['x']
         return self
+TestRegressor()

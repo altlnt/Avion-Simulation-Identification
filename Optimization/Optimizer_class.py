@@ -15,6 +15,7 @@ from datetime import datetime
 
 import transforms3d as tf3d
 from Simulation.MoteurPhysique_class import MoteurPhysique
+from sklearn.model_selection import train_test_split
 
 
 
@@ -53,12 +54,17 @@ class Optimizer():
         print()
          
     def prepare_data(self):
-        temp_df=self.raw_data.drop(columns=['t','alpha'])
+        "drop alpha, t and omegadot from data"
+        temp_df=self.raw_data.drop(columns=['alpha'])
         temp_df=temp_df.drop(columns=[i for i in temp_df.keys() if 'omegadot' in i])
+        
+        "renaming acc[0] and co to acc_0"
         for i in temp_df.keys():
             temp_df[i.replace('[','_').replace(']','')]=temp_df[i]
             temp_df=temp_df.drop(columns=[i])
-            
+        
+        "accel at timestamp k+1 is computed using state at step k"
+        
         new_temp_df=pd.DataFrame()
         
         for i in temp_df.keys():
@@ -69,10 +75,16 @@ class Optimizer():
             
         self.data_prepared=new_temp_df
         
-        self.X=self.data_prepared[[i for i in self.data_prepared.keys() if not (('acc' in i) or ('torque' in i))]]
+        "split between X and Y"
+
+        self.data_prepared_train,self.data_prepared_test=train_test_split(self.data_prepared,test_size=0.2, random_state=42)
         
-        
-        self.Y=self.data_prepared[[i for i in self.data_prepared.keys() if (('acc' in i) or ('torque' in i))]]
+
+        self.X_train=self.data_prepared_train[[i for i in self.data_prepared.keys() if not (('acc' in i) or ('torque' in i))]]
+        self.X_test=self.data_prepared_test[[i for i in self.data_prepared.keys() if not (('acc' in i) or ('torque' in i))]]
+        self.Y_train=self.data_prepared_train[[i for i in self.data_prepared.keys() if (('acc' in i) or ('torque' in i))]]
+        self.Y_test=self.data_prepared_train[[i for i in self.data_prepared.keys() if (('acc' in i) or ('torque' in i))]]
+
 
         return        
     # def init_optimization(self):
@@ -96,4 +108,5 @@ class Optimizer():
 O=Optimizer()
 O.prepare_data()
 
-print(O.raw_data,O.X,O.Y,O.data_prepared)
+print(O.raw_data,O.X_train,O.Y_train)
+print(O.X_train.keys())
