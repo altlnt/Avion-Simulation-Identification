@@ -43,39 +43,9 @@ class ModelRegressor(BaseEstimator):
         self.current_train_score=0
         self.current_test_score=0
         
-        
-        
-    def model(self, x_data):
-        
-        self.MoteurPhysique.speed=np.array([x_data["speed_%i"%(i)] for i in range(3)]).flatten()
-        self.MoteurPhysique.q=np.array([x_data["q_%i"%(i)] for i in range(4)]).flatten()
-        self.MoteurPhysique.omega=np.array([x_data["omega_%i"%(i)] for i in range(3)]).flatten()
-        self.MoteurPhysique.R=tf3d.quaternions.quat2mat(self.MoteurPhysique.q).reshape((3,3))
-        
-        joystick_input=np.array([x_data['joystick_%i'%(i)] for i in range(4)]).flatten()
-        
-        
-        
-        self.MoteurPhysique.compute_dynamics(joystick_input,x_data['t'].values)
-        
-        d=np.r_[self.MoteurPhysique.forces,self.MoteurPhysique.torque]
-        
-        output=pd.DataFrame(data=d.reshape((1,6)),columns=['forces_0','forces_1','forces_2',
-                                            'torque_0','torque_1','torque_2'])  
-        return output
-
 
     def Dict_variables_to_X(self,Dict):
-        
-        # V=[]
-        # for key in np.sort([i for i in self.start_Dict_variables.keys()]):
-        #     [V.append(i) for i in np.array(Dict[key]).flatten()]
-        # print(V)
-        
         V=[i for key in np.sort([i for i in self.start_Dict_variables.keys()])  for i in np.array(Dict[key]).flatten()]
-        # for key in np.sort([i for i in self.start_Dict_variables.keys()]):
-        #     [V.append(i) for i in np.array(Dict[key]).flatten()]
-        # print(V)
         return np.array(V)    
     
     def X_to_Dict_Variables(self,V):
@@ -88,6 +58,26 @@ class ModelRegressor(BaseEstimator):
             Dict[i]=V[counter:counter+L].reshape(S)
             counter=counter+L
         return Dict
+
+        
+    def model(self, x_data):
+        
+        self.MoteurPhysique.speed=np.array([x_data["speed_%i"%(i)] for i in range(3)]).flatten()
+        self.MoteurPhysique.q=np.array([x_data["q_%i"%(i)] for i in range(4)]).flatten()
+        self.MoteurPhysique.omega=np.array([x_data["omega_%i"%(i)] for i in range(3)]).flatten()
+        self.MoteurPhysique.R=tf3d.quaternions.quat2mat(self.MoteurPhysique.q).reshape((3,3))
+        
+        joystick_input=np.array([x_data['joystick_%i'%(i)] for i in range(4)]).flatten()
+        
+        self.MoteurPhysique.compute_dynamics(joystick_input,x_data['t'].values)
+        
+        d=np.r_[self.MoteurPhysique.forces,self.MoteurPhysique.torque]
+        
+        output=pd.DataFrame(data=d.reshape((1,6)),columns=['forces_0','forces_1','forces_2',
+                                            'torque_0','torque_1','torque_2'])  
+        return output
+
+
     
     def cost(self,X_params=None,usage="training"):
         
@@ -145,15 +135,16 @@ class ModelRegressor(BaseEstimator):
             
             self.x_train_batch=[]
             self.y_train_batch=[]
+            
             sample_nmbr=0
 
-            while sample_nmbr<len(self.x_train-1):     
+            while sample_nmbr<len(self.x_train)-1:     
                 
                 self.x_train_batch.append(self.x_train.loc[[sample_nmbr]])
                 self.y_train_batch.append(self.y_train.loc[[sample_nmbr]])
                 sample_nmbr+=1
     
-                if len(self.x_train_batch)==self.train_batch_size:
+                if len(self.x_train_batch)==self.train_batch_size or sample_nmbr==len(self.x_train)-1:
                     
                     "batch is full beginning opti"
                     
@@ -161,10 +152,10 @@ class ModelRegressor(BaseEstimator):
                     self.y_train_batch=pd.concat(self.y_train_batch)                        
                     
                     if self.fitting_strategy=="scipy":
-                        X0=self.Dict_variables_to_X(self.current_Dict_variables)
+                        X0_params=self.Dict_variables_to_X(self.current_Dict_variables)
                         # print(X0)
                         res = minimize(self.cost,
-                             x0=X0)
+                             x0=X0_params)
     
                         self.current_Dict_variables=self.X_to_Dict_Variables(res['x'])
                                             
