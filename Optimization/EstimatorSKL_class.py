@@ -66,13 +66,27 @@ class ModelRegressor(BaseEstimator):
 
 
     def Dict_variables_to_X(self,Dict):
-        V=np.array([Dict[i] for i in np.sort(self.start_Dict_variables.keys())])
-        return V
+        
+        # V=[]
+        # for key in np.sort([i for i in self.start_Dict_variables.keys()]):
+        #     [V.append(i) for i in np.array(Dict[key]).flatten()]
+        # print(V)
+        
+        V=[i for key in np.sort([i for i in self.start_Dict_variables.keys()])  for i in np.array(Dict[key]).flatten()]
+        # for key in np.sort([i for i in self.start_Dict_variables.keys()]):
+        #     [V.append(i) for i in np.array(Dict[key]).flatten()]
+        # print(V)
+        return np.array(V)    
     
     def X_to_Dict_Variables(self,V):
         Dict={}
-        for j,i in enumerate(np.sort(self.start_Dict_variables.keys())):
-            Dict[i]=V[j]
+        
+        counter=0
+        for i in np.sort([i for i in self.start_Dict_variables.keys()]):
+            L=len(np.array(self.start_Dict_variables[i]).flatten())
+            S=np.array(self.start_Dict_variables[i]).shape
+            Dict[i]=V[counter:counter+L].reshape(S)
+            counter=counter+L
         return Dict
     
     def cost(self,X_params=None,usage="training"):
@@ -81,7 +95,7 @@ class ModelRegressor(BaseEstimator):
             print('usage not in (["training","train_eval","test_eval"])')
             raise
         
-        DictVariable_X=self.X_to_Dict_Variables(X_params) if X_params!=None else self.current_Dict_variables
+        DictVariable_X=self.X_to_Dict_Variables(X_params) if (X_params is not None) else self.current_Dict_variables
         
         self.MoteurPhysique.Dict_Variables=DictVariable_X
         self.current_Dict_variables = self.MoteurPhysique.Dict_Variables
@@ -139,7 +153,7 @@ class ModelRegressor(BaseEstimator):
                 self.y_train_batch.append(self.y_train.loc[[sample_nmbr]])
                 sample_nmbr+=1
     
-                if len(self.x_train_batch==self.train_batch_size):
+                if len(self.x_train_batch)==self.train_batch_size:
                     
                     "batch is full beginning opti"
                     
@@ -147,8 +161,8 @@ class ModelRegressor(BaseEstimator):
                     self.y_train_batch=pd.concat(self.y_train_batch)                        
                     
                     if self.fitting_strategy=="scipy":
-                        X0=self.Dict_variables_to_X(self.current_Dict_variables())
-
+                        X0=self.Dict_variables_to_X(self.current_Dict_variables)
+                        # print(X0)
                         res = minimize(self.cost,
                              x0=X0)
     
@@ -174,8 +188,8 @@ o=Optimizer()
 o.prepare_data()
 # print('X_train',o.X_train.head(),'\n\n\n')
 
-m.x_train_batch=pd.concat([o.X_train.loc[[i]] for i in range(3)])
-m.y_train_batch=pd.concat([o.Y_train.loc[[i]] for i in range(3)])
+# m.x_train_batch=pd.concat([o.X_train.loc[[i]] for i in range(3)])
+# m.y_train_batch=pd.concat([o.Y_train.loc[[i]] for i in range(3)])
 
 # print(m.x_train_batch)
-m.cost()
+m.fit(o.X_train,o.Y_train)

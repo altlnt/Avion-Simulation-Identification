@@ -99,6 +99,7 @@ class MoteurPhysique():
                               "rotor_speed" : self.moy_rotor_speed }
  
         self.SaveDict={} 
+        self.called_from_opti=called_from_opti
         if not called_from_opti:
             for dic in [self.Dict_world,self.Dict_variables]:
                 keys=dic.keys() 
@@ -193,7 +194,8 @@ class MoteurPhysique():
         if (t)<T_init:
             self.forces= np.array([0,0,0]) 
             self.torque= np.array([0,0,0])
-            print("Début des commandes dans :", T_init-t)
+            if not self.called_from_opti:
+                print("Début des commandes dans :", T_init-t)   
 
         else:  
             for p, cp in enumerate(cp_list) :          # Cette boucle calcul les coefs aéro pour chaque surface 
