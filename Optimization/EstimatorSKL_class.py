@@ -14,13 +14,17 @@ from sklearn.base import BaseEstimator
 import transforms3d as tf3d
 from scipy.optimize import minimize
 import pandas as pd
-
+import json
+import os
+from OptiMonitor_class import OptiMonitor
+from Simulation.MoteurPhysique_class import MoteurPhysique
+import time
 class ModelRegressor(BaseEstimator):  
 
     def __init__(self, Dict_variables=None,train_batch_size=1,n_epochs=1,fitting_strategy="scipy"):
-        """
-        Called when initializing the classifier
-        """
+
+        self.spath=None
+        
         self.train_batch_size=train_batch_size
         self.fitting_strategy=fitting_strategy
         self.n_epochs=n_epochs
@@ -40,9 +44,23 @@ class ModelRegressor(BaseEstimator):
         self.x_train_batch=[]
         self.y_train_batch=[]
         
+        self.current_epoch=0
         self.current_train_score=0
         self.current_test_score=0
         
+        self.monitor=OptiMonitor()
+        self.monitor.t=self.current_epoch
+        self.monitor.y_train,self.monitor.y_eval= self.current_train_score,self.current_test_score
+        self.monitor.update()
+        time.sleep(0.01)
+        return 
+    
+    def generate_random_params(self,amp_dev=3.0):
+        
+        X_params=self.Dict_variables_to_X(self.start_Dict_variables)
+        new_X_params=X_params*(1+3*(np.random.random(size=len(X_params))-0.5))
+        self.current_Dict_variables=self.X_to_Dict_Variables(new_X_params)
+        return
 
     def Dict_variables_to_X(self,Dict):
         V=[i for key in np.sort([i for i in self.start_Dict_variables.keys()])  for i in np.array(Dict[key]).flatten()]
@@ -124,28 +142,54 @@ class ModelRegressor(BaseEstimator):
         return C
     
     def fit(self, X_train, Y_train, X_test=None, Y_test=None):
-
+        print("Begin fit")
         self.x_train = X_train
         self.y_train = Y_train
         
         self.x_test = X_test
         self.y_test = Y_test
         
+        self.monitor.t=self.current_epoch
+        self.monitor.y_train,self.monitor.y_eval= self.current_train_score,self.current_test_score
+        self.monitor.update()
+        time.sleep(0.05)
         for i in range(self.n_epochs):
+            "saving"
+            self.current_epoch+=1
             
+            if self.spath is not None:
+                with open(os.path.join(self.spath,"%i.json"%(i)),'w') as f:
+                    sdict=self.current_Dict_variables
+                    sdict['train_score']=self.current_train_score
+                    sdict['test_score']=self.current_test_score
+                    
+                    for i in sdict.keys():
+                        
+                        sdict[i]=sdict[i].tolist() if type(sdict[i])==np.ndarray else sdict[i]
+                    json.dump(sdict,f)
+                   
+            "monitor update"
+            self.monitor.t=self.current_epoch
+            self.monitor.y_train,self.monitor.y_eval= self.current_train_score,self.current_test_score
+            self.monitor.update()
+            time.sleep(0.05)
+
+            "opti loop"
             self.x_train_batch=[]
-            self.y_train_batch=[]
-            
+            self.y_train_batch=[]           
+
+
             sample_nmbr=0
 
-            while sample_nmbr<len(self.x_train)-1:     
+            while sample_nmbr<(len(self.x_train)-2):     
                 
                 self.x_train_batch.append(self.x_train.loc[[sample_nmbr]])
                 self.y_train_batch.append(self.y_train.loc[[sample_nmbr]])
                 sample_nmbr+=1
     
-                if len(self.x_train_batch)==self.train_batch_size or sample_nmbr==len(self.x_train)-1:
-                    
+                if len(self.x_train_batch)==self.train_batch_size or sample_nmbr==len(self.x_train)-2:
+                    print("Epoch "+str(i)+" sample "+str(sample_nmbr))
+
                     "batch is full beginning opti"
                     
                     self.x_train_batch=pd.concat(self.x_train_batch)
@@ -167,20 +211,30 @@ class ModelRegressor(BaseEstimator):
             if self.x_test!=None and self.y_test!=None:
                 self.current_test_score=self.cost(usage="test_eval")
 
+
+                    
+                    
         return self
 
 
-from Optimizer_class import  Optimizer
-from Simulation.MoteurPhysique_class import MoteurPhysique
+# from Optimizer_class import  Optimizer
+# from Simulation.MoteurPhysique_class import MoteurPhysique
 
-m=ModelRegressor()
-o=Optimizer()
+# m=ModelRegressor()
+# o=Optimizer()
 # print(o.raw_data.keys())
-o.prepare_data()
+# o.prepare_data()
 # print('X_train',o.X_train.head(),'\n\n\n')
 
 # m.x_train_batch=pd.concat([o.X_train.loc[[i]] for i in range(3)])
 # m.y_train_batch=pd.concat([o.Y_train.loc[[i]] for i in range(3)])
 
 # print(m.x_train_batch)
-m.fit(o.X_train,o.Y_train)
+# print(m.start_Dict_variables)
+# nd=m.X_to_Dict_Variables(m.Dict_variables_to_X(m.start_Dict_variables))
+
+# for i in m.start_Dict_variables.keys():
+#     print("ORIGINAL : ",m.start_Dict_variables[i])
+#     print("RECONSTRUCTED : ",nd[i],"\n")
+
+    

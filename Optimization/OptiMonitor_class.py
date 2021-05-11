@@ -32,37 +32,37 @@ class OptiMonitor():
         
         
         self.t0=time.time()
-        
-        self.train_data=np.array([[0,10]])
-        self.eval_data=np.array([[0,11]])
+        self.t,self.y_train,self.y_eval=0,10,11
+        self.train_data=np.array([[self.t,self.y_train]])
+        self.eval_data=np.array([[self.t,self.y_eval]])
 
     def update(self):
         
-        t=time.time()-self.t0
-        y=10*np.exp(-0.01*t)
+        # self.t=time.time()-self.t0
+        # self.y=10*np.exp(-0.01*self.t)
         
-        self.train_data=np.row_stack([self.train_data,[t,y]])
-        self.eval_data=np.row_stack([self.eval_data,[t,y+1.0]])
+        self.train_data=np.row_stack([self.train_data,[self.t,self.y_train]])
+        self.eval_data=np.row_stack([self.eval_data,[self.t,self.y_eval]])
         
         self.train_score_curve.setData(self.train_data[:,0],self.train_data[:,1])
         self.eval_score_curve.setData(self.eval_data[:,0],self.eval_data[:,1])
         
-        info="<div>t=%f , y=%f"%(t,y)
+        info="<div>t=%f , y=%f"%(self.t,self.y_train)
         info+="\n bonjour\n</div>"
         info+="<div>\n comment\n</div>"
         info+="<div>\n sava\n"
         info+="\n ajd\n</div>"
 
         self.label.setText(info)
-
+        self.win.update()
+        return
 
     def launch(self):
         timer = pg.QtCore.QTimer()
         timer.timeout.connect(self.update)
         timer.start(50)
-        if __name__ == '__main__':
-            pg.mkQApp().exec_()
-            print("YA")
+        pg.mkQApp().exec_()
 
-o=OptiMonitor()
-o.launch()
+# o=OptiMonitor()
+# # o.launch()
+# o.update()

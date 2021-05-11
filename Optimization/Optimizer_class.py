@@ -8,19 +8,10 @@ Created on Fri May  7 15:05:05 2021
 import sys
 sys.path.append('../')
 
-import numpy as np
 import os
-import time
-from datetime import datetime
-
-import transforms3d as tf3d
-from Simulation.MoteurPhysique_class import MoteurPhysique
 from sklearn.model_selection import train_test_split
-
-
-
+from EstimatorSKL_class import ModelRegressor
 import pandas as pd 
-# from OptiMonitor_class import OptiMonitor
 import json
 
 
@@ -30,28 +21,25 @@ class Optimizer():
     
     def __init__(self):
         
-        self.result_save_path="../OptiResults/"
-        self.result_dir_name=""
-        self.result_dir_name=self.result_dir_name if self.result_dir_name!="" else str(len(os.listdir(self.result_save_path))+1)
-        
-        os.makedirs(os.path.join(self.result_save_path,self.result_dir_name))
-        
-        
-        
+
         self.log_dir_path="../Logs/2021_05_10_16h13m12s"
         self.log_path=os.path.join(self.log_dir_path,"log.txt")        
         self.true_params_path=os.path.join(self.log_dir_path,"params.json")
         
         with open(self.true_params_path,"r") as f:
             self.true_params=json.load( f)
-
-        
         self.raw_data=pd.read_csv(self.log_path)
-        # print(self.true_params)
+            
+        self.result_save_path="../OptiResults/"
+        self.result_dir_name=""
+        self.result_dir_name=self.result_dir_name if self.result_dir_name!="" else str(len(os.listdir(self.result_save_path))+1)
         
-        # self.moteur_physique=MoteurPhysique()
-
-         
+        os.makedirs(os.path.join(self.result_save_path,self.result_dir_name))
+        
+        self.estimator=ModelRegressor()
+        self.estimator.spath=os.path.join(self.result_save_path,self.result_dir_name)
+        
+        
     def prepare_data(self):
         "drop alpha, t and omegadot from data"
         temp_df=self.raw_data.drop(columns=['alpha'])
@@ -88,26 +76,15 @@ class Optimizer():
 
     
         return      
-    # def init_optimization(self):
-        
-        
-        
-    # def genstartpoint(self):
-    #     return
-    
-    # def cost(self):
-    #     return
-    
-    # def minimize(self):
-    #     return
-    
-    # def display_progress(self):
-    #     return 
-    
-    
-    
-# O=Optimizer()
-# O.prepare_data()
 
-# print(O.raw_data,O.X_train,O.Y_train)
-# print(O.X_train.keys())
+    def launch(self):
+        self.prepare_data()
+        self.estimator.generate_random_params()
+        self.estimator.monitor.update()
+        self.estimator.fit(self.X_train,self.Y_train,self.X_test,self.Y_test)
+        
+        
+        
+O=Optimizer()
+import time
+O.launch()
