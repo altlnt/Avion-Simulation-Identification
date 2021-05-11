@@ -20,11 +20,13 @@ dill.settings['recurse'] = True
 
 
 class MoteurPhysique():
-    def __init__(self):
+    def __init__(self,called_from_opti=False):
+        
+        
         self.save_path_base=os.path.join("../Logs",datetime.now().strftime("%Y_%m_%d_%Hh%Mm%Ss"))
 
-        
-        os.makedirs(self.save_path_base)
+        if not called_from_opti:
+            os.makedirs(self.save_path_base)
  
         
         # Miscellaneous
@@ -97,16 +99,16 @@ class MoteurPhysique():
                               "rotor_speed" : self.moy_rotor_speed }
  
         self.SaveDict={} 
-
-        for dic in [self.Dict_world,self.Dict_variables]:
-            keys=dic.keys() 
-            for key in keys:
-                self.SaveDict[key]=np.array(dic[key]).tolist()
-
-        with open(os.path.join(self.save_path_base,'params.json'), 'w') as fp:
-            json.dump(self.SaveDict, fp)
+        if not called_from_opti:
+            for dic in [self.Dict_world,self.Dict_variables]:
+                keys=dic.keys() 
+                for key in keys:
+                    self.SaveDict[key]=np.array(dic[key]).tolist()
+    
+            with open(os.path.join(self.save_path_base,'params.json'), 'w') as fp:
+                json.dump(self.SaveDict, fp)
         
-        print(self.data_save_path)
+            print(self.data_save_path)
     
     def orthonormalize(self,R_i):
         R=R_i

@@ -68,7 +68,7 @@ class Optimizer():
         new_temp_df=pd.DataFrame()
         
         for i in temp_df.keys():
-            if ('acc' in i) or ('torque' in i):
+            if ('forces' in i) or ('torque' in i):
                 new_temp_df[i]=temp_df[i][1:].values
             else:
                 new_temp_df[i]=temp_df[i][:-1].values
@@ -81,10 +81,10 @@ class Optimizer():
         
         self.data_prepared_train,self.data_prepared_test=self.data_prepared_train.reset_index(),self.data_prepared_test.reset_index()
 
-        self.X_train=self.data_prepared_train[[i for i in self.data_prepared.keys() if not (('acc' in i) or ('torque' in i))]]
-        self.X_test=self.data_prepared_test[[i for i in self.data_prepared.keys() if not (('acc' in i) or ('torque' in i))]]
-        self.Y_train=self.data_prepared_train[[i for i in self.data_prepared.keys() if (('acc' in i) or ('torque' in i))]]
-        self.Y_test=self.data_prepared_train[[i for i in self.data_prepared.keys() if (('acc' in i) or ('torque' in i))]]
+        self.X_train=self.data_prepared_train[[i for i in self.data_prepared.keys() if not (('forces' in i) or ('torque' in i))]]
+        self.X_test=self.data_prepared_test[[i for i in self.data_prepared.keys() if not (('forces' in i) or ('torque' in i))]]
+        self.Y_train=self.data_prepared_train[[i for i in self.data_prepared.keys() if (('forces' in i) or ('torque' in i))]]
+        self.Y_test=self.data_prepared_train[[i for i in self.data_prepared.keys() if (('forces' in i) or ('torque' in i))]]
 
     
         return      
