@@ -79,6 +79,7 @@ class Optimizer():
 
         self.data_prepared_train,self.data_prepared_test=train_test_split(self.data_prepared,test_size=0.2, random_state=42)
         
+        self.data_prepared_train,self.data_prepared_test=self.data_prepared_train.reset_index(),self.data_prepared_test.reset_index()
 
         self.X_train=self.data_prepared_train[[i for i in self.data_prepared.keys() if not (('acc' in i) or ('torque' in i))]]
         self.X_test=self.data_prepared_test[[i for i in self.data_prepared.keys() if not (('acc' in i) or ('torque' in i))]]

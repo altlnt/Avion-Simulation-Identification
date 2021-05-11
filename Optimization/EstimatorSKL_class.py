@@ -18,18 +18,25 @@ import pandas as pd
 
 class ModelRegressor(BaseEstimator):  
 
-    def __init__(self, Dict_variables=None,train_batch_size=1):
+    def __init__(self, Dict_variables=None,train_batch_size=1,fitting_strategy="scipy"):
         """
         Called when initializing the classifier
         """
-       
+        self.train_batch_size=train_batch_size
+        self.fitting_strategy=fitting_strategy
         self.MoteurPhysique=MoteurPhysique()
-        if Dict_variables!=None:
-            self.MoteurPhysique.Dict_variables=Dict_variables
-    
-    def loss(self,arg):
         
-        return np.linalg.norm((self.fd_y-(arg[0]*self.fd_x+arg[1]))**2)
+        if Dict_variables!=None:
+            self.start_Dict_variables=Dict_variables
+            self.current_Dict_variables=Dict_variables
+            
+        else:
+            self.start_Dict_variables=self.MoteurPhysique.Dict_variables
+            self.current_Dict_variables=self.MoteurPhysique.Dict_variables
+            
+        self.MoteurPhysique.Dict_variables=self.start_Dict_variables
+    
+
 
     def _model(self, x):
         
@@ -45,43 +52,37 @@ class ModelRegressor(BaseEstimator):
                                             'torque_0','torque_1','torque_2'])  
         return output 
 
-    def score(self,X,y):
-        return self._loss(self._model(X,[self.param_a,self.param_b]),y)
-    
-    # 2. Define the loss function
-    def _loss(self, y_obs, y_pred):
-        """Compute the dealer gain
-    
-        :param np.array y_obs: real sales
-        :param np.array y_pred: predicted sales = purchasses
-        """
-        return np.linalg.norm(y_obs - y_pred)
 
-    # 3. Function to be minimized
-    def _f(self, params, *args):
-        """Function to minimize = losses for the dealer
-
-        :param args: must contains in that order:
-        - data to be fitted (pd.Series)
-        - model (function)
-        """
-        x = self.x_train
-        y_obs = self.y_train
-        y_pred = self._model(x, params)
-        l = self._loss(y_pred, y_obs)
-        return l
+    def Dict_variables_to_X(self,Dict):
+        return
+    
+    def Dict_variables_to_X(self,Dict):
+        return    
     
     def fit(self, X, Y):
-        """
-        Fit global model on X features to minimize 
-        a given function on Y.
 
-        @param X: train dataset (features, N-dim)
-        @param Y: train dataset (target, 1-dim)
-        """
         self.x_train = X
         self.y_train = Y
-        param_initial_values = [self.param_a,self.param_b]
+        
+        sample_nmbr=0
+        x_train_batch=[]
+        y_train_batch=[]
+        
+        while sample_nmbr<len(self.x_train-1):     
+            
+            x_train_batch.append(self.x_train.loc[sample_nmbr])
+            y_train_batch.append(self.y_train.loc[sample_nmbr])
+            sample_nmbr+=1
+
+            if len(x_train_batch==self.train_batch_size):
+                
+                "beginning opti"
+                if self.fitting_strategy=="scipy":
+                    
+            
+                
+                    
+        
         res = minimize(
             self._f,
             x0=param_initial_values, 
@@ -99,4 +100,8 @@ o=Optimizer()
 # print(o.raw_data.keys())
 o.prepare_data()
 # print(o.X_train.keys())
-print(m._model(o.X_train.loc[13]))
+print(m._model(o.X_train.loc[0]))
+
+a=np.arange(20)
+
+print([i for i in gen_batches(20,1)])
