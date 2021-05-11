@@ -6,6 +6,8 @@ Created on Tue Apr 20 00:36:07 2021
 @author: alex
 """
 
+import sys
+sys.path.append('../')
 import numpy as np
 import os
 import time
@@ -45,7 +47,7 @@ class MoteurPhysique():
         self.moy_rotor_speed = 200
         self.takeoff =0
         
-        self.Effort_function = dill.load(open('function_moteur_physique','rb'))
+        self.Effort_function = dill.load(open('../Simulation/function_moteur_physique','rb'))
         self.joystick_input = [0,0,0,0,0]
 
         ####### Dictionnaire des paramètres du monde 
