@@ -6,63 +6,72 @@ Created on Sat May  8 16:16:33 2021
 @author: l3x
 """
 
-import pyqtgraph as pg
-from pyqtgraph.Qt import QtCore, QtGui
+
 import numpy as np
-import time 
+import time
+import matplotlib.pyplot as plt
 
-
-class OptiMonitor():
+class OptiMonitor_MPL():
     def __init__(self,name=None):
         
         self.name=name if name!=None else str(int(time.time()))
         
-        self.win = pg.GraphicsLayoutWidget(show=True)
-        self.win.setWindowTitle(self.name)
-        self.plot_item= self.win.addPlot()
-        self.plot_item.setDownsampling(mode='peak')
-        self.plot_item.setLabel('bottom', 'epoch')
-
-        self.label= pg.LabelItem(justify='right')
-        self.win.addItem(self.label)
-
-        self.train_score_curve = self.plot_item.plot()
-        self.eval_score_curve = self.plot_item.plot()
+        self.fig = plt.figure()
+        
+        self.ax= self.fig.add_subplot(111)
         
         
+
+
         
         self.t0=time.time()
-        self.t,self.y_train,self.y_eval=0,10,11
-        self.train_data=np.array([[self.t,self.y_train]])
-        self.eval_data=np.array([[self.t,self.y_eval]])
+        self.t,self.y_train,self.y_eval=0,0,0
+        self.t_data=[self.t]
+        self.train_data=[self.y_train]
+        self.eval_data=[self.y_eval]     
+
+
+        # self.train_score_scat, = self.ax.scatter(self.t_data,self.train_data,label="train")
+        # self.eval_score_scat, = self.ax.scatter(self.t_data,self.eval_data,label="eval")
+        self.train_score_curve, = self.ax.plot(self.train_data,
+                                               label="train",
+                                               marker="x")
+        self.eval_score_curve, = self.ax.plot(self.eval_data,
+                                              label="eval",
+                                              marker="o")
+        
+        self.ax.grid()
+        self.ax.legend()
 
     def update(self):
         
         # self.t=time.time()-self.t0
         # self.y=10*np.exp(-0.01*self.t)
         
-        self.train_data=np.row_stack([self.train_data,[self.t,self.y_train]])
-        self.eval_data=np.row_stack([self.eval_data,[self.t,self.y_eval]])
+        # self.y_train,self.y_eval=self.y,self.y+1
         
-        self.train_score_curve.setData(self.train_data[:,0],self.train_data[:,1])
-        self.eval_score_curve.setData(self.eval_data[:,0],self.eval_data[:,1])
+        self.t_data=self.t_data+[self.t]
+        self.train_data=self.train_data+[self.y_train]
+        self.eval_data=self.eval_data+[self.y_eval]
         
-        info="<div>t=%f , y=%f"%(self.t,self.y_train)
-        info+="\n bonjour\n</div>"
-        info+="<div>\n comment\n</div>"
-        info+="<div>\n sava\n"
-        info+="\n ajd\n</div>"
+        self.train_score_curve.set_data(self.t_data,self.train_data)
+        self.eval_score_curve.set_data(self.t_data,self.eval_data)
+        
+        # self.train_score_scat.set_data(self.t_data,self.train_data)
+        # self.eval_score_scat.set_data(self.t_data,self.eval_data)
+        
+        self.ax.relim()
+        self.ax.autoscale_view()
+        plt.pause(0.001)
 
-        self.label.setText(info)
-        self.win.update()
         return
 
     def launch(self):
-        timer = pg.QtCore.QTimer()
-        timer.timeout.connect(self.update)
-        timer.start(50)
-        pg.mkQApp().exec_()
+        plt.ion()
+        while 1:
+            time.sleep(0.05)
+            self.update()
 
 # o=OptiMonitor()
-# # o.launch()
+# o.launch()
 # o.update()

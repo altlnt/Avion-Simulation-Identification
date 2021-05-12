@@ -79,9 +79,27 @@ class Optimizer():
 
     def launch(self):
         self.prepare_data()
-        self.estimator.generate_random_params()
-        self.estimator.monitor.update()
-        self.estimator.fit(self.X_train,self.Y_train,self.X_test,self.Y_test)
+        print("Preapred data")
+        # print(self.estimator.start_Dict_variables,"\n")
+        # print(self.estimator.current_Dict_variables,"\n")
+        self.estimator.x_train,self.estimator.y_train=self.X_train,self.Y_train
+
+
+
+        for i in range(10):
+            self.estimator.generate_random_params(amp_dev=3.0)
+            print(self.estimator.cost(usage="train_eval"))
+
+        # for i in self.estimator.start_Dict_variables.keys():
+        #     print(self.estimator.start_Dict_variables[i])
+        #     print(self.estimator.current_Dict_variables[i])
+        #     print(self.estimator.MoteurPhysique.Dict_Variables[i],"\n")
+
+            
+        # self.estimator.monitor.update()
+        # print("X_train",self.X_train)
+        # print("X_test",self.X_test)
+        # self.estimator.fit(self.X_train,self.Y_train,self.X_test,self.Y_test)
         
         
         

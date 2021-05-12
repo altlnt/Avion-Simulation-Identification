@@ -16,12 +16,13 @@ from scipy.optimize import minimize
 import pandas as pd
 import json
 import os
-from OptiMonitor_class import OptiMonitor
+from OptiMonitor_class import OptiMonitor_MPL
 from Simulation.MoteurPhysique_class import MoteurPhysique
 import time
+
 class ModelRegressor(BaseEstimator):  
 
-    def __init__(self, Dict_variables=None,train_batch_size=1,n_epochs=1,fitting_strategy="scipy"):
+    def __init__(self, Dict_variables=None,train_batch_size=10,n_epochs=3,fitting_strategy="scipy"):
 
         self.spath=None
         
@@ -48,17 +49,17 @@ class ModelRegressor(BaseEstimator):
         self.current_train_score=0
         self.current_test_score=0
         
-        self.monitor=OptiMonitor()
+        self.monitor=OptiMonitor_MPL()
         self.monitor.t=self.current_epoch
         self.monitor.y_train,self.monitor.y_eval= self.current_train_score,self.current_test_score
         self.monitor.update()
-        time.sleep(0.01)
+        self.sample_nmbr=0
         return 
     
-    def generate_random_params(self,amp_dev=3.0):
+    def generate_random_params(self,amp_dev=0.0):
         
         X_params=self.Dict_variables_to_X(self.start_Dict_variables)
-        new_X_params=X_params*(1+3*(np.random.random(size=len(X_params))-0.5))
+        new_X_params=X_params*(1+amp_dev*(np.random.random(size=len(X_params))-0.5))
         self.current_Dict_variables=self.X_to_Dict_Variables(new_X_params)
         return
 
@@ -115,15 +116,17 @@ class ModelRegressor(BaseEstimator):
             used_y_batch=self.y_train_batch 
 
         elif usage=="train_eval":
+            # print(self.x_train_batch ,self.x_train)
             used_x_batch=self.x_train
             used_y_batch=self.y_train
             
-        elif usage=="train_eval":
+            
+        elif usage=="test_eval":
             used_x_batch=self.x_test 
             used_y_batch=self.y_test
 
-
-        self.y_pred_batch=pd.concat([self.model(used_x_batch.iloc[[i]]) for i in range(len(self.x_train_batch))])
+        # print(len(used_x_batch),usage)
+        self.y_pred_batch=pd.concat([self.model(used_x_batch.iloc[[i]]) for i in range(len(used_x_batch))])
         
         # print(self.x_train_batch)
         # print("ypred batch\n\n",self.y_pred_batch,"\n\n",len(self.y_pred_batch))
@@ -138,21 +141,29 @@ class ModelRegressor(BaseEstimator):
         # error_torque=
         cout_forces=1.0
         cout_torque=1.0
-        C=cout_forces*sum_error_forces + cout_torque*sum_error_torque         
+        C=cout_forces*sum_error_forces + cout_torque*sum_error_torque       
+        
+        print("Epoch "+str(self.current_epoch)+" sample "+str(self.sample_nmbr) + "/" +str(len(self.x_train))+' cost : '+str(C))
+
         return C
     
     def fit(self, X_train, Y_train, X_test=None, Y_test=None):
-        print("Begin fit")
+
         self.x_train = X_train
         self.y_train = Y_train
         
         self.x_test = X_test
         self.y_test = Y_test
         
+        self.current_train_score=self.cost(usage="train_eval")
+        
+        if self.x_test is not None and self.y_test is not None:
+            self.current_test_score=self.cost(usage="test_eval")
+            
         self.monitor.t=self.current_epoch
         self.monitor.y_train,self.monitor.y_eval= self.current_train_score,self.current_test_score
         self.monitor.update()
-        time.sleep(0.05)
+        
         for i in range(self.n_epochs):
             "saving"
             self.current_epoch+=1
@@ -172,29 +183,28 @@ class ModelRegressor(BaseEstimator):
             self.monitor.t=self.current_epoch
             self.monitor.y_train,self.monitor.y_eval= self.current_train_score,self.current_test_score
             self.monitor.update()
-            time.sleep(0.05)
 
             "opti loop"
             self.x_train_batch=[]
             self.y_train_batch=[]           
 
 
-            sample_nmbr=0
+            self.sample_nmbr=0
 
-            while sample_nmbr<(len(self.x_train)-2):     
+            while self.sample_nmbr<(len(self.x_train)-1):     
                 
-                self.x_train_batch.append(self.x_train.loc[[sample_nmbr]])
-                self.y_train_batch.append(self.y_train.loc[[sample_nmbr]])
-                sample_nmbr+=1
+                self.x_train_batch.append(self.x_train.loc[[self.sample_nmbr]])
+                self.y_train_batch.append(self.y_train.loc[[self.sample_nmbr]])
+                self.sample_nmbr+=1
     
-                if len(self.x_train_batch)==self.train_batch_size or sample_nmbr==len(self.x_train)-2:
-                    print("Epoch "+str(i)+" sample "+str(sample_nmbr))
-
+                if len(self.x_train_batch)==self.train_batch_size or (self.sample_nmbr==len(self.x_train)-1):
+                
+                    
                     "batch is full beginning opti"
                     
                     self.x_train_batch=pd.concat(self.x_train_batch)
                     self.y_train_batch=pd.concat(self.y_train_batch)                        
-                    
+
                     if self.fitting_strategy=="scipy":
                         X0_params=self.Dict_variables_to_X(self.current_Dict_variables)
                         # print(X0)
@@ -208,7 +218,7 @@ class ModelRegressor(BaseEstimator):
                         
             self.current_train_score=self.cost(usage="train_eval")
             
-            if self.x_test!=None and self.y_test!=None:
+            if self.x_test is not None and self.y_test is not None:
                 self.current_test_score=self.cost(usage="test_eval")
 
 
