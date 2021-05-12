@@ -72,6 +72,6 @@ class OptiMonitor_MPL():
             time.sleep(0.05)
             self.update()
 
-# o=OptiMonitor()
+# o=OptiMonitor_MPL()
 # o.launch()
 # o.update()

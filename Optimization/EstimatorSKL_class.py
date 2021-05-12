@@ -106,8 +106,8 @@ class ModelRegressor(BaseEstimator):
         
         DictVariable_X=self.X_to_Dict_Variables(X_params) if (X_params is not None) else self.current_Dict_variables
         
-        self.MoteurPhysique.Dict_Variables=DictVariable_X
-        self.current_Dict_variables = self.MoteurPhysique.Dict_Variables
+        self.MoteurPhysique.Dict_variables=DictVariable_X
+        self.current_Dict_variables = self.MoteurPhysique.Dict_variables
         # print(self.x_train_batch.iloc[[0]].head(),'\n\n')
         
         if usage=="training":
@@ -166,7 +166,6 @@ class ModelRegressor(BaseEstimator):
         
         for i in range(self.n_epochs):
             "saving"
-            self.current_epoch+=1
             
             if self.spath is not None:
                 with open(os.path.join(self.spath,"%i.json"%(i)),'w') as f:
@@ -175,8 +174,13 @@ class ModelRegressor(BaseEstimator):
                     sdict['test_score']=self.current_test_score
                     
                     for i in sdict.keys():
-                        
-                        sdict[i]=sdict[i].tolist() if type(sdict[i])==np.ndarray else sdict[i]
+                        if type(sdict[i])==list:
+                            sdict[i]=np.array(sdict[i]) 
+                            
+                        if type( sdict[i])==np.ndarray:
+                            sdict[i]=sdict[i].tolist() 
+                            
+                        print(sdict[i])
                     json.dump(sdict,f)
                    
             "monitor update"
@@ -190,6 +194,7 @@ class ModelRegressor(BaseEstimator):
 
 
             self.sample_nmbr=0
+            self.current_epoch+=1
 
             while self.sample_nmbr<(len(self.x_train)-1):     
                 
@@ -208,9 +213,9 @@ class ModelRegressor(BaseEstimator):
                     if self.fitting_strategy=="scipy":
                         X0_params=self.Dict_variables_to_X(self.current_Dict_variables)
                         # print(X0)
-                        res = minimize(self.cost,
-                             x0=X0_params)
-    
+                        res = minimize(self.cost,method='SLSQP',
+                             x0=X0_params,options={'maxiter': 2})
+                        print("finires")
                         self.current_Dict_variables=self.X_to_Dict_Variables(res['x'])
                                             
                     self.x_train_batch=[]
