@@ -18,11 +18,10 @@ import json
 import os
 from OptiMonitor_class import OptiMonitor_MPL
 from Simulation.MoteurPhysique_class import MoteurPhysique
-import time
 
 class ModelRegressor(BaseEstimator):  
 
-    def __init__(self, Dict_variables=None,train_batch_size=10,n_epochs=3,fitting_strategy="scipy"):
+    def __init__(self, Dict_variables=None,train_batch_size=10,n_epochs=3,fitting_strategy="custom_gradient"):
 
         self.spath=None
         
@@ -54,6 +53,8 @@ class ModelRegressor(BaseEstimator):
         self.monitor.y_train,self.monitor.y_eval= self.current_train_score,self.current_test_score
         self.monitor.update()
         self.sample_nmbr=0
+        
+        self.learning_rate=1e-3
         return 
     
     def generate_random_params(self,amp_dev=0.0):
@@ -98,7 +99,7 @@ class ModelRegressor(BaseEstimator):
 
 
     
-    def cost(self,X_params=None,usage="training"):
+    def cost(self,X_params=None,usage="training",verbose=True):
         
         if usage not in (["training","train_eval","test_eval"]):
             print('usage not in (["training","train_eval","test_eval"])')
@@ -143,9 +144,20 @@ class ModelRegressor(BaseEstimator):
         cout_torque=1.0
         C=cout_forces*sum_error_forces + cout_torque*sum_error_torque       
         
-        print("Epoch "+str(self.current_epoch)+" sample "+str(self.sample_nmbr) + "/" +str(len(self.x_train))+' cost : '+str(C))
+        if verbose:
+            print("Epoch "+str(self.current_epoch)+" sample "+str(self.sample_nmbr) + "/" +str(len(self.x_train))+' cost : '+str(C))
 
         return C
+    
+  
+        
+    def compute_gradient(self,func,X_params,eps=1e-8):
+        
+        C0=func(X_params)
+        grad=np.array([func(X_params+np.array([eps if j==i else 0 for j in range(len(X_params))])) - func(X_params-np.array([eps if j==i else 0 for j in range(len(X_params))])) for i in range(len(X_params))])
+
+        return grad/eps/2
+        
     
     def fit(self, X_train, Y_train, X_test=None, Y_test=None):
 
@@ -217,7 +229,15 @@ class ModelRegressor(BaseEstimator):
                              x0=X0_params,options={'maxiter': 2})
                         print("finires")
                         self.current_Dict_variables=self.X_to_Dict_Variables(res['x'])
-                                            
+                        
+                    if self.fitting_strategy=="custom_gradient":
+                        X0_params=self.Dict_variables_to_X(self.current_Dict_variables)
+                        G=self.compute_gradient(self.cost,X0_params,eps=1e-7)
+                        new_X=X0_params-2*self.learning_rate*G
+                        print("finigrad")
+                        self.current_Dict_variables=self.X_to_Dict_Variables(new_X)
+
+                        
                     self.x_train_batch=[]
                     self.y_train_batch=[]   
                         

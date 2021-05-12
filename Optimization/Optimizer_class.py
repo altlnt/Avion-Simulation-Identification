@@ -86,7 +86,6 @@ class Optimizer():
 
         # for i in range(3):
         #     print(self.estimator.cost(usage="train_eval"))
-        #     self.estimator.generate_random_params(amp_dev=1.0)
 
             # for i in self.estimator.start_Dict_variables.keys():
             #     print(self.estimator.start_Dict_variables[i])
@@ -97,6 +96,8 @@ class Optimizer():
         # self.estimator.monitor.update()
         # print("X_train",self.X_train)
         # print("X_test",self.X_test)
+        self.estimator.generate_random_params(amp_dev=1.0)
+
         self.estimator.fit(self.X_train,self.Y_train,self.X_test,self.Y_test)
         
         
