@@ -52,7 +52,7 @@ class ModelRegressor(BaseEstimator):
         self.monitor=OptiMonitor_MPL()
         self.monitor.t=self.current_epoch
         self.monitor.y_train,self.monitor.y_eval= self.current_train_score,self.current_test_score
-        self.monitor.update()
+        self.monitor.update(self.current_Dict_variables)
         self.sample_nmbr=0
         return 
     
@@ -162,7 +162,7 @@ class ModelRegressor(BaseEstimator):
             
         self.monitor.t=self.current_epoch
         self.monitor.y_train,self.monitor.y_eval= self.current_train_score,self.current_test_score
-        self.monitor.update()
+        self.monitor.update(self.current_Dict_variables)
         
         for i in range(self.n_epochs):
             "saving"
@@ -177,17 +177,18 @@ class ModelRegressor(BaseEstimator):
                         if type(sdict[i])==list:
                             sdict[i]=np.array(sdict[i]) 
                             
-                        if type( sdict[i])==np.ndarray:
+                        if type(sdict[i])==np.ndarray:
                             sdict[i]=sdict[i].tolist() 
                             
-                        print(sdict[i])
+                        # print(sdict)
+                        
                     json.dump(sdict,f)
                    
             "monitor update"
             self.monitor.t=self.current_epoch
             self.monitor.y_train,self.monitor.y_eval= self.current_train_score,self.current_test_score
-            self.monitor.update()
-
+            self.monitor.update(self.current_Dict_variables)
+            print(self.current_Dict_variables.keys())
             "opti loop"
             self.x_train_batch=[]
             self.y_train_batch=[]           
