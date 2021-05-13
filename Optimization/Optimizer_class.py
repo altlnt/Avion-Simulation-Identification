@@ -79,7 +79,6 @@ class Optimizer():
 
     def launch(self):
         self.prepare_data()
-        print("Preapred data")
         # print(self.estimator.start_Dict_variables,"\n")
         # print(self.estimator.current_Dict_variables,"\n")
         # self.estimator.x_train,self.estimator.y_train=self.X_train,self.Y_train
@@ -96,7 +95,7 @@ class Optimizer():
         # self.estimator.monitor.update()
         # print("X_train",self.X_train)
         # print("X_test",self.X_test)
-        self.estimator.generate_random_params(amp_dev=1.0)
+        self.estimator.generate_random_params(amp_dev=0.00)
 
         self.estimator.fit(self.X_train,self.Y_train,self.X_test,self.Y_test)
         

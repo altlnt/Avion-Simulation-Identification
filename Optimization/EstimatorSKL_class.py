@@ -54,14 +54,21 @@ class ModelRegressor(BaseEstimator):
         self.monitor.update()
         self.sample_nmbr=0
         
-        self.learning_rate=1e-3
+        self.learning_rate=1e-4
         return 
     
     def generate_random_params(self,amp_dev=0.0):
         
-        X_params=self.Dict_variables_to_X(self.start_Dict_variables)
-        new_X_params=X_params*(1+amp_dev*(np.random.random(size=len(X_params))-0.5))
-        self.current_Dict_variables=self.X_to_Dict_Variables(new_X_params)
+        # X_params=self.Dict_variables_to_X(self.start_Dict_variables)
+        # new_X_params=X_params*(1+amp_dev*(np.random.random(size=len(X_params))-0.5))
+        # self.current_Dict_variables=self.X_to_Dict_Variables(new_X_params)
+        
+        self.current_Dict_variables['masse']=2.6
+        print('Old / New current variables: ')
+        for i in self.start_Dict_variables.keys():
+            print(i,self.start_Dict_variables[i],"/",self.current_Dict_variables[i])
+
+        
         return
 
     def Dict_variables_to_X(self,Dict):
@@ -79,6 +86,15 @@ class ModelRegressor(BaseEstimator):
             counter=counter+L
         return Dict
 
+        
+    def compute_gradient(self,func,X_params,eps=1e-8,verbose=True):
+        
+        grad=np.array([func(X_params+np.array([eps if j==i else 0 for j in range(len(X_params))])) - func(X_params-np.array([eps if j==i else 0 for j in range(len(X_params))])) for i in range(len(X_params))])
+
+        grad/=2*eps
+        if verbose:
+            print("Gradient : ", grad)
+        return grad
         
     def model(self, x_data):
         
@@ -121,7 +137,6 @@ class ModelRegressor(BaseEstimator):
             used_x_batch=self.x_train
             used_y_batch=self.y_train
             
-            
         elif usage=="test_eval":
             used_x_batch=self.x_test 
             used_y_batch=self.y_test
@@ -148,17 +163,7 @@ class ModelRegressor(BaseEstimator):
             print("Epoch "+str(self.current_epoch)+" sample "+str(self.sample_nmbr) + "/" +str(len(self.x_train))+' cost : '+str(C))
 
         return C
-    
-  
         
-    def compute_gradient(self,func,X_params,eps=1e-8):
-        
-        C0=func(X_params)
-        grad=np.array([func(X_params+np.array([eps if j==i else 0 for j in range(len(X_params))])) - func(X_params-np.array([eps if j==i else 0 for j in range(len(X_params))])) for i in range(len(X_params))])
-
-        return grad/eps/2
-        
-    
     def fit(self, X_train, Y_train, X_test=None, Y_test=None):
 
         self.x_train = X_train
@@ -192,7 +197,7 @@ class ModelRegressor(BaseEstimator):
                         if type( sdict[i])==np.ndarray:
                             sdict[i]=sdict[i].tolist() 
                             
-                        print(sdict[i])
+                        # print(sdict[i])
                     json.dump(sdict,f)
                    
             "monitor update"
@@ -204,7 +209,6 @@ class ModelRegressor(BaseEstimator):
             self.x_train_batch=[]
             self.y_train_batch=[]           
 
-
             self.sample_nmbr=0
             self.current_epoch+=1
 
@@ -215,12 +219,12 @@ class ModelRegressor(BaseEstimator):
                 self.sample_nmbr+=1
     
                 if len(self.x_train_batch)==self.train_batch_size or (self.sample_nmbr==len(self.x_train)-1):
-                
                     
                     "batch is full beginning opti"
                     
                     self.x_train_batch=pd.concat(self.x_train_batch)
                     self.y_train_batch=pd.concat(self.y_train_batch)                        
+                    self.previous_Dict_variables=self.current_Dict_variables
 
                     if self.fitting_strategy=="scipy":
                         X0_params=self.Dict_variables_to_X(self.current_Dict_variables)
@@ -231,24 +235,27 @@ class ModelRegressor(BaseEstimator):
                         self.current_Dict_variables=self.X_to_Dict_Variables(res['x'])
                         
                     if self.fitting_strategy=="custom_gradient":
+                        
                         X0_params=self.Dict_variables_to_X(self.current_Dict_variables)
                         G=self.compute_gradient(self.cost,X0_params,eps=1e-7)
-                        new_X=X0_params-2*self.learning_rate*G
+                        new_X=X0_params-self.learning_rate*G
+                        
                         print("finigrad")
                         self.current_Dict_variables=self.X_to_Dict_Variables(new_X)
-
+                        for i in self.current_Dict_variables.keys():
+                            print('start/prev/current '+i+' :',
+                                  self.start_Dict_variables[i],
+                                  self.previous_Dict_variables[i],
+                                  self.current_Dict_variables[i],)
                         
                     self.x_train_batch=[]
                     self.y_train_batch=[]   
-                        
+                    input("Continue ?")
             self.current_train_score=self.cost(usage="train_eval")
             
             if self.x_test is not None and self.y_test is not None:
                 self.current_test_score=self.cost(usage="test_eval")
-
-
-                    
-                    
+   
         return self
 
 
