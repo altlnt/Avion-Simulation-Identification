@@ -21,7 +21,7 @@ from Simulation.MoteurPhysique_class import MoteurPhysique
 
 class ModelRegressor(BaseEstimator):  
 
-    def __init__(self, Dict_variables=None,train_batch_size=10,n_epochs=5,fitting_strategy="custom_gradient"):
+    def __init__(self, Dict_variables=None,train_batch_size=5,n_epochs=10,fitting_strategy="custom_gradient"):
 
         self.spath=None
         
@@ -65,7 +65,7 @@ class ModelRegressor(BaseEstimator):
         self.monitor.update(self.current_Dict_variables, self.start_Dict_variables)
         self.sample_nmbr=0
         
-        self.learning_rate=1e-2
+        self.learning_rate=1.0
         return 
     
     def generate_random_params(self,amp_dev=0.0):
@@ -250,7 +250,7 @@ class ModelRegressor(BaseEstimator):
                         X0_params/=scaler
                         # print(X0)
                         res = minimize(self.cost,method='SLSQP',
-                             x0=X0_params,options={'maxiter': 2})
+                             x0=X0_params,options={'maxiter': 100})
                         # print("finires")
                         self.current_Dict_variables=self.X_to_Dict_Variables(res['x']*scaler)
                         
