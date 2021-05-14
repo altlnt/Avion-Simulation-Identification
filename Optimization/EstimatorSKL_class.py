@@ -21,7 +21,7 @@ from Simulation.MoteurPhysique_class import MoteurPhysique
 
 class ModelRegressor(BaseEstimator):  
 
-    def __init__(self, Dict_variables=None,train_batch_size=10,n_epochs=3,fitting_strategy="custom_gradient"):
+    def __init__(self, Dict_variables=None,train_batch_size=10,n_epochs=5,fitting_strategy="custom_gradient"):
 
         self.spath=None
         
@@ -30,6 +30,17 @@ class ModelRegressor(BaseEstimator):
         self.n_epochs=n_epochs
 
         self.MoteurPhysique=MoteurPhysique(called_from_opti=True)
+        self.opti_variables_keys=['alpha_stall',
+                                  'largeur_stall',
+                                  'cd1sa',
+                                  'cl1sa',
+                                  'cd0sa',
+                                  'cd1fp',
+                                  'cd0fp',
+                                  'coeff_drag_shift',
+                                  'coeff_lift_shift',
+                                  'coef_lift_gain']
+        
         
         if Dict_variables!=None:
             self.start_Dict_variables=Dict_variables
@@ -54,40 +65,43 @@ class ModelRegressor(BaseEstimator):
         self.monitor.update()
         self.sample_nmbr=0
         
-        self.learning_rate=1e-4
+        self.learning_rate=1e-2
         return 
     
     def generate_random_params(self,amp_dev=0.0):
         
-        # X_params=self.Dict_variables_to_X(self.start_Dict_variables)
-        # new_X_params=X_params*(1+amp_dev*(np.random.random(size=len(X_params))-0.5))
-        # self.current_Dict_variables=self.X_to_Dict_Variables(new_X_params)
+        X_params=self.Dict_variables_to_X(self.start_Dict_variables)
+        new_X_params=X_params*(1+amp_dev*(np.random.random(size=len(X_params))-0.5))
+        self.current_Dict_variables=self.X_to_Dict_Variables(new_X_params)
         
-        self.current_Dict_variables['masse']=2.6
-        print('Old / New current variables: ')
+        # self.current_Dict_variables['masse']=2.6
+        print('[Randomization] Old / New / current variables: ')
         for i in self.start_Dict_variables.keys():
             print(i,self.start_Dict_variables[i],"/",self.current_Dict_variables[i])
-
+        print("\n")
         
         return
 
     def Dict_variables_to_X(self,Dict):
-        V=[i for key in np.sort([i for i in self.start_Dict_variables.keys()])  for i in np.array(Dict[key]).flatten()]
+        V=[j  for key in np.sort([i for i in self.opti_variables_keys]) for j in np.array(Dict[key]).flatten()]
         return np.array(V)    
     
     def X_to_Dict_Variables(self,V):
         Dict={}
         
         counter=0
-        for i in np.sort([i for i in self.start_Dict_variables.keys()]):
+        for i in np.sort([i for i in self.opti_variables_keys]):
             L=len(np.array(self.start_Dict_variables[i]).flatten())
             S=np.array(self.start_Dict_variables[i]).shape
             Dict[i]=V[counter:counter+L].reshape(S)
             counter=counter+L
+        for i in self.start_Dict_variables.keys():
+            if i not in self.opti_variables_keys:
+                Dict[i]=self.start_Dict_variables[i]
         return Dict
 
         
-    def compute_gradient(self,func,X_params,eps=1e-8,verbose=True):
+    def compute_gradient(self,func,X_params,eps=1e-6,verbose=True):
         
         grad=np.array([func(X_params+np.array([eps if j==i else 0 for j in range(len(X_params))])) - func(X_params-np.array([eps if j==i else 0 for j in range(len(X_params))])) for i in range(len(X_params))])
 
@@ -115,7 +129,7 @@ class ModelRegressor(BaseEstimator):
 
 
     
-    def cost(self,X_params=None,usage="training",verbose=True):
+    def cost(self,X_params=None,usage="training",verbose=False):
         
         if usage not in (["training","train_eval","test_eval"]):
             print('usage not in (["training","train_eval","test_eval"])')
@@ -186,7 +200,10 @@ class ModelRegressor(BaseEstimator):
             
             if self.spath is not None:
                 with open(os.path.join(self.spath,"%i.json"%(i)),'w') as f:
-                    sdict=self.current_Dict_variables
+                    sdict={}
+                    for i in self.opti_variables_keys:
+                        sdict[i]=self.current_Dict_variables[i]
+                        
                     sdict['train_score']=self.current_train_score
                     sdict['test_score']=self.current_test_score
                     
@@ -227,34 +244,44 @@ class ModelRegressor(BaseEstimator):
                     self.previous_Dict_variables=self.current_Dict_variables
 
                     if self.fitting_strategy=="scipy":
+                        scaler=self.Dict_variables_to_X(self.start_Dict_variables)
+                        scaler=np.array([i if i!=0 else 1.0 for i in scaler ])
                         X0_params=self.Dict_variables_to_X(self.current_Dict_variables)
+                        X0_params/=scaler
                         # print(X0)
                         res = minimize(self.cost,method='SLSQP',
                              x0=X0_params,options={'maxiter': 2})
-                        print("finires")
-                        self.current_Dict_variables=self.X_to_Dict_Variables(res['x'])
+                        # print("finires")
+                        self.current_Dict_variables=self.X_to_Dict_Variables(res['x']*scaler)
                         
                     if self.fitting_strategy=="custom_gradient":
                         
+                        scaler=self.Dict_variables_to_X(self.start_Dict_variables)
+                        scaler=np.array([i if i!=0 else 1.0 for i in scaler ])
+                        # print(scaler)
                         X0_params=self.Dict_variables_to_X(self.current_Dict_variables)
+                        X0_params/=scaler
                         G=self.compute_gradient(self.cost,X0_params,eps=1e-7)
                         new_X=X0_params-self.learning_rate*G
-                        
-                        print("finigrad")
+                        new_X*=scaler
+                        # print("finigrad")
                         self.current_Dict_variables=self.X_to_Dict_Variables(new_X)
-                        for i in self.current_Dict_variables.keys():
-                            print('start/prev/current '+i+' :',
-                                  self.start_Dict_variables[i],
-                                  self.previous_Dict_variables[i],
-                                  self.current_Dict_variables[i],)
+                    print('########################')
+                    print(self.current_Dict_variables.keys())
+                    for i in self.opti_variables_keys:
+                        
+                        print('########################\nstart/prev/current '+i+' :',
+                              self.start_Dict_variables[i],
+                              self.previous_Dict_variables[i],
+                              self.current_Dict_variables[i])
                         
                     self.x_train_batch=[]
                     self.y_train_batch=[]   
-                    input("Continue ?")
-            self.current_train_score=self.cost(usage="train_eval")
-            
-            if self.x_test is not None and self.y_test is not None:
-                self.current_test_score=self.cost(usage="test_eval")
+                    # input("Continue ?")
+                    self.current_train_score=self.cost(usage="train_eval",verbose=True)
+                    
+                    if self.x_test is not None and self.y_test is not None:
+                        self.current_test_score=self.cost(usage="test_eval",verbose=True)
    
         return self
 
