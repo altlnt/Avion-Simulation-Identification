@@ -173,7 +173,7 @@ class ModelRegressor(BaseEstimator):
         cout_torque=1.0
         C=cout_forces*sum_error_forces + cout_torque*sum_error_torque       
         
-        if verbose:
+        if verbose or usage in ("test_eval","train_eval"):
             print("Epoch "+str(self.current_epoch)+" sample "+str(self.sample_nmbr) + "/" +str(len(self.x_train))+' cost : '+str(C))
 
         return C

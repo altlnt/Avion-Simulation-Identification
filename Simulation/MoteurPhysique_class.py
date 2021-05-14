@@ -51,7 +51,8 @@ class MoteurPhysique():
         
         self.Effort_function = dill.load(open('../Simulation/function_moteur_physique','rb'))
         self.joystick_input = [0,0,0,0,0]
-
+        self.joystick_input_log= [0,0,0,0,0]
+        
         ####### Dictionnaire des paramètres du monde 
         self.Dict_world     = {"wind" : np.array([0,0,0]),                        \
                                "g"    : np.array([0,0,9.81]),                    \
@@ -98,6 +99,8 @@ class MoteurPhysique():
         self.Dict_Commande = {"delta" : 0,\
                               "rotor_speed" : self.moy_rotor_speed }
  
+    
+    
         self.SaveDict={} 
         self.called_from_opti=called_from_opti
         if not called_from_opti:
@@ -153,7 +156,8 @@ class MoteurPhysique():
             # 5 : Effort_Aero qui renvoi un liste tel que [Force, Couple]
         
         T_init=self.T_init    # Temps pendant laquelle les forces ne s'appliquent pas sur le drone
-                
+        self.joystick_input_log= joystick_input
+
         for q,i in enumerate(joystick_input):      # Ajout d'une zone morte dans les commandes 
             if abs(i)<40 :
                 self.joystick_input[q] = 0
@@ -296,7 +300,7 @@ class MoteurPhysique():
         torque=self.torque
         alpha=self.Dict_etats['alpha']
         euler = self.EulerAngle(q) * 180/np.pi
-        joystick_input = self.joystick_input
+        joystick_input = self.joystick_input_log
 
         if 'log.txt' not in os.listdir(self.data_save_path):
             print("Here: Init")
