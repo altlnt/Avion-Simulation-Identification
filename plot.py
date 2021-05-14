@@ -42,6 +42,6 @@ for i,key in enumerate([i for i in data.keys() if i!="t"]):
     if "alpha" in key:
         cu_ax.set_ylim(-2,2)
     if "joystick" in key:
-        cu_ax.set_ylim(-250,250)
+        cu_ax.set_ylim(-1,2)
 
         

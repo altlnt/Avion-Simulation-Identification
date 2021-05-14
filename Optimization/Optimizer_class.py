@@ -22,7 +22,7 @@ class Optimizer():
     def __init__(self):
         
 
-        self.log_dir_path="../Logs/2021_05_10_16h13m12s"
+        self.log_dir_path="../Logs/2021_05_14_14h37m37s"
         self.log_path=os.path.join(self.log_dir_path,"log.txt")        
         self.true_params_path=os.path.join(self.log_dir_path,"params.json")
         

@@ -153,24 +153,25 @@ class MoteurPhysique():
             # 5 : Effort_Aero qui renvoi un liste tel que [Force, Couple]
         
         T_init=self.T_init    # Temps pendant laquelle les forces ne s'appliquent pas sur le drone
-        
-        self.joystick_input = joystick_input
-        J_input = [0,0,0,0,0]
-        
+                
         for q,i in enumerate(joystick_input):      # Ajout d'une zone morte dans les commandes 
             if abs(i)<40 :
-                J_input[q]=0
-            else : J_input[q]=joystick_input[q]/250
-
+                self.joystick_input[q] = 0
+            elif q==0 or q==2 :
+                self.joystick_input[q] = 0
+            elif q==3 : 
+                self.joystick_input[q] = joystick_input[q]/250 *  self.moy_rotor_speed
+            else:
+                self.joystick_input[q] = joystick_input[q] * 15 *np.pi/180 / 250 
         # Mise à niveau des commandes pour etre entre -15 et 15 degrés 
          # (l'input est entre -250 et 250 initialement)
-        self.Dict_Commande["delta"] = np.array([J_input[0], -J_input[0], \
-                                                (J_input[1] - J_input[2]) \
-                                                , (J_input[1] + J_input[2]) , 0]) \
-                                                * 15 *np.pi/180
+        self.Dict_Commande["delta"] = np.array([self.joystick_input[0], -self.joystick_input[0], \
+                                                (self.joystick_input[1] - self.joystick_input[2]) \
+                                                , (self.joystick_input[1] + self.joystick_input[2]) , 0]) \
+            
                                                 
-        self.Dict_Commande["rotor_speed"] =  self.moy_rotor_speed + (J_input[3]\
-                                                                     * self.moy_rotor_speed)
+        self.Dict_Commande["rotor_speed"] =  self.moy_rotor_speed + self.joystick_input[3]
+                                                                     
 
         
         R_list         = [self.R, self.R, self.Rotation(self.R, 45), self.Rotation(self.R,-45), self.R]
