@@ -10,7 +10,7 @@ from pylab import *
 import os
 import matplotlib.pyplot as plt
 %matplotlib qt
-datadir=sort(os.listdir(os.path.join(os.getcwd(),"Logs")))[-1]
+datadir=sort(os.listdir(os.path.join(os.getcwd(),"Logs")))[-2]
 
 data=pd.read_csv(os.path.join(os.getcwd(),"Logs",datadir,"log.txt"))
 
@@ -42,6 +42,6 @@ for i,key in enumerate([i for i in data.keys() if i!="t"]):
     if "alpha" in key:
         cu_ax.set_ylim(-2,2)
     if "joystick" in key:
-        cu_ax.set_ylim(-1,2)
+        cu_ax.set_ylim(min(data[key]), max(data[key]))
 
         
