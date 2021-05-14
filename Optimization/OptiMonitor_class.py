@@ -45,12 +45,11 @@ class OptiMonitor_MPL():
                                               label="eval",
                                               marker="o")
         
-        self.params_current = dict()
         self.ax.grid()
         self.ax.legend()
 
         self.info = ''
-    def update(self, current_valeur):
+    def update(self, current_params, init_params):
         self.ax.clear()
 
         self.train_score_curve, = self.ax.plot(self.train_data,
@@ -70,19 +69,24 @@ class OptiMonitor_MPL():
         
         self.train_score_curve.set_data(self.t_data,self.train_data)
         self.eval_score_curve.set_data(self.t_data,self.eval_data)
-        
-        self.params_current = current_valeur
+
         self.info=''
-        
         for keys,values in self.params_real.items():
             values = self.dict_to_str(self.params_real, keys)
-            if keys in self.params_current:
-                current_values = self.dict_to_str(self.params_current, keys)
-                self.info=self.info+"\n"+keys+'_real'+' :  '+values+' et ' +keys+'_current'+' : '+current_values
-            else :
-                #self.info=self.info+"\n"+keys+'_real'+' : '+values 
-                print('1')
-        plt.text(0.0,0.0, s=self.info, fontsize=8, transform=self.ax.transAxes)
+            if keys in current_params:
+                current_values = self.dict_to_str(current_params, keys)
+            else:
+                current_values ='None'
+            if keys in init_params:
+                init_values = self.dict_to_str(init_params, keys)
+            else: 
+                init_values = 'None'
+            if current_values =='None' and init_values=='None':
+                self.info = self.info+"\n"
+            else:
+                self.info=self.info+"\n"+keys +': real'+' :  '+values+' init : '+init_values+' : current'+' : '+current_values
+           
+        plt.text(0.2,0.5, s=self.info,verticalalignment='center', horizontalalignment='center', fontsize=10, transform=self.ax.transAxes)
 
         # self.train_score_scat.set_data(self.t_data,self.train_data)
         # self.eval_score_scat.set_data(self.t_data,self.eval_data)
@@ -96,30 +100,36 @@ class OptiMonitor_MPL():
         return
     
     def dict_to_str(self, dic, keys):
-        values=''
+        values =''
         if type(dic[keys]) == list:
             if type(dic[keys][0])==int or type(dic[keys][0])==float:
                 values = "["
                 for j in range(len(dic[keys])-1):
                     values = values + str(dic[keys][j])+","
                 values=values+str(dic[keys][-1])+"]"
+                
+            elif type(dic[keys])==float or type(dic[keys])==int:
+                   values = str(dic[keys])
+                   
             else :
                 if type(dic[keys][0][0])==float or type(dic[keys][0][0])==int:
                     if keys=='inertie':
                         values = "["+str(dic[keys][0][0])+","\
                             +str(dic[keys][1][1])+","+str(dic[keys][2][2])+"]"
-                    elif keys=="cp_list" : 
-                        values ="["+str(dic[keys][0][0])+","\
+                   
+                    else : 
+                        for i in range(len(dic[keys][0])-1):
+                            values=str(dic[keys][i])+","
+                        values="["+values+str(dic[keys][-1])+"]"
+                else : 
+                    values ="["+str(dic[keys][0][0])+","\
                             +str(dic[keys][0][1])+","+str(dic[keys][0][2])+"]"+"\n ["+str(dic[keys][1][0])+","\
                             +str(dic[keys][1][1])+","+str(dic[keys][1][2])+"]"+"\n ["+str(dic[keys][2][0])+","\
                             +str(dic[keys][2][1])+","+str(dic[keys][2][2])+"]"+"\n ["+str(dic[keys][3][0])+","\
                             +str(dic[keys][3][1])+","+str(dic[keys][3][2])+"]"+"\n ["+str(dic[keys][4][0])+","\
                             +str(dic[keys][4][1])+","+str(dic[keys][4][2])+"]"
-                    else : 
-                        for i in range(len(dic[keys][0])-1):
-                            values=str(dic[keys][i])+","
-                        values="["+values+str(dic[keys][-1])+"]"
                
+                   
         elif type(dic[keys])==float or type(dic[keys])==int:
             values=str(dic[keys])
 
@@ -135,9 +145,17 @@ class OptiMonitor_MPL():
                     +str(dic[keys][2][1])+","+str(dic[keys][2][2])+"]"+"\n ["+str(dic[keys][3][0])+","\
                     +str(dic[keys][3][1])+","+str(dic[keys][3][2])+"]"+"\n ["+str(dic[keys][4][0])+","\
                     +str(dic[keys][4][1])+","+str(dic[keys][4][2])+"]"
-            #elif dic[keys]
+            
+            elif type(dic[keys])==float or type(dic[keys])==int:
+                values = str(dic[keys])
             else : 
-                values=="0000000"
+                if np.size(dic[keys])==1:
+                    values = str(dic[keys])
+                else :
+                    values = "["
+                    for j in range(len(dic[keys])-1):
+                        values = values + str(dic[keys][j])+","
+                    values=values+str(dic[keys][-1])+"]"
         return values
     
     def launch(self):

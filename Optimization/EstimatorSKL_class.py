@@ -62,7 +62,7 @@ class ModelRegressor(BaseEstimator):
         self.monitor=OptiMonitor_MPL()
         self.monitor.t=self.current_epoch
         self.monitor.y_train,self.monitor.y_eval= self.current_train_score,self.current_test_score
-        self.monitor.update(self.current_Dict_variables)
+        self.monitor.update(self.current_Dict_variables, self.start_Dict_variables)
         self.sample_nmbr=0
         
         self.learning_rate=1e-2
@@ -193,7 +193,7 @@ class ModelRegressor(BaseEstimator):
             
         self.monitor.t=self.current_epoch
         self.monitor.y_train,self.monitor.y_eval= self.current_train_score,self.current_test_score
-        self.monitor.update(self.current_Dict_variables)
+        self.monitor.update(self.current_Dict_variables,self.start_Dict_variables)
         
         for i in range(self.n_epochs):
             "saving"
@@ -220,8 +220,8 @@ class ModelRegressor(BaseEstimator):
             "monitor update"
             self.monitor.t=self.current_epoch
             self.monitor.y_train,self.monitor.y_eval= self.current_train_score,self.current_test_score
-            self.monitor.update(self.current_Dict_variables)
-            print(self.current_Dict_variables.keys())
+            self.monitor.update(self.current_Dict_variables, self.start_Dict_variables)
+            # print(self.current_Dict_variables.keys())
             "opti loop"
             self.x_train_batch=[]
             self.y_train_batch=[]           
@@ -266,11 +266,11 @@ class ModelRegressor(BaseEstimator):
                         new_X*=scaler
                         # print("finigrad")
                         self.current_Dict_variables=self.X_to_Dict_Variables(new_X)
-                    print('########################')
-                    print(self.current_Dict_variables.keys())
+                    # print('########################')
+                    # print(self.current_Dict_variables.keys())
                     for i in self.opti_variables_keys:
                         
-                        print('########################\nstart/prev/current '+i+' :',
+                         print('########################\nstart/prev/current '+i+' :',
                               self.start_Dict_variables[i],
                               self.previous_Dict_variables[i],
                               self.current_Dict_variables[i])
@@ -279,6 +279,7 @@ class ModelRegressor(BaseEstimator):
                     self.y_train_batch=[]   
                     # input("Continue ?")
                     self.current_train_score=self.cost(usage="train_eval",verbose=True)
+                    self.monitor.update(self.current_Dict_variables, self.start_Dict_variables)
                     
                     if self.x_test is not None and self.y_test is not None:
                         self.current_test_score=self.cost(usage="test_eval",verbose=True)
