@@ -20,7 +20,7 @@ dill.settings['recurse'] = True
 
 
 class MoteurPhysique():
-    def __init__(self,called_from_opti=False):
+    def __init__(self,called_from_opti=False,T_init=1.0):
         
         
         self.save_path_base=os.path.join("../Logs",datetime.now().strftime("%Y_%m_%d_%Hh%Mm%Ss"))
@@ -32,7 +32,7 @@ class MoteurPhysique():
         # Miscellaneous
         self.data_save_path=self.save_path_base
         self.last_t=0.0
-        self.T_init=1.0
+        self.T_init=T_init
         # Body state
         
         #   Translation

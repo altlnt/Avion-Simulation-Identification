@@ -116,7 +116,7 @@ class ModelRegressor(BaseEstimator):
         self.MoteurPhysique.q=np.array([x_data["q_%i"%(i)] for i in range(4)]).flatten()
         self.MoteurPhysique.omega=np.array([x_data["omega_%i"%(i)] for i in range(3)]).flatten()
         self.MoteurPhysique.R=tf3d.quaternions.quat2mat(self.MoteurPhysique.q).reshape((3,3))
-        self.MoteurPhysique.takeoff=x_data["takeoff"]
+        self.MoteurPhysique.takeoff=x_data["takeoff"].values
         joystick_input=np.array([x_data['joystick_%i'%(i)] for i in range(4)]).flatten()
         
         self.MoteurPhysique.compute_dynamics(joystick_input,x_data['t'].values)
@@ -164,22 +164,31 @@ class ModelRegressor(BaseEstimator):
         
         error=(used_y_batch.reset_index()-self.y_pred_batch.reset_index())**2
         error=error.drop(columns=["index"])
-        
-        print('Xbatch',used_x_batch)
-        print(used_x_batch.head())
-        print(used_x_batch.describe(),'\n')
+        error['sum_forces']=error['forces_0']+error['forces_1']+error['forces_2']
+        error['sum_torques']=error['torque_0']+error['torque_1']+error['torque_2']
 
-        print("Error",error)
-        print(error.head())
-        print(error.describe(),'\n')
+        print('Xbatch',used_x_batch)
+        # print(used_x_batch.head())
+        # print(used_x_batch.describe(),'\n')
+        print('##############################################')
+        print('##############################################')
+        print("Error\n",error)
+        print(" Error Sorted Head\n",error.sort_values(by=['sum_forces'],ascending=False).head(10))
+        print(" Error Describe\n", error.describe(),'\n')
+    
+        print("Faulty timestamps",used_x_batch.iloc[error.sort_values(by=['sum_forces'],ascending=False).head(10).index])
+   
 
         sum_error_forces=np.mean([error['forces_%i'%(i)] for i in range(3)],axis=1)
-        print("SUM Error",sum_error_forces)
         
-        print(error.iloc[[error['forces_0'].argmax()]])
-        print(used_x_batch.iloc[[error['forces_0'].argmax()]])
+
         # print(sum_error_forces.head())
         # print(sum_error_forces.describe(),'\n')        
+        
+        print('##############################################')
+        print('##############################################')
+        # print(error.sort_values(by=[""]))
+
         
         sum_error_torque=np.mean([error['torque_%i'%(i)] for i in range(3)],axis=1)
        

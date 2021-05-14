@@ -14,9 +14,9 @@ from pylab import *
 import os
 import matplotlib.pyplot as plt
 # %matplotlib qt
-datadir=sort(os.listdir(os.path.join(os.getcwd(),"Logs")))[-2]
+datadir=sort(os.listdir(os.path.join(os.getcwd(),"Logs")))[-1]
 
-data=pd.read_csv("./Logs/2021_05_14_15h06m36s/log.txt")
+data=pd.read_csv(os.path.join(os.getcwd(),"Logs",datadir,'log.txt'))
 
 f,axes=plt.subplots(nrows=5,ncols=6)
 

@@ -22,7 +22,7 @@ class Optimizer():
     def __init__(self):
         
 
-        self.log_dir_path="../Logs/2021_05_14_15h06m36s"
+        self.log_dir_path="../Logs/2021_05_14_15h54m30s"
         self.log_path=os.path.join(self.log_dir_path,"log.txt")        
         self.true_params_path=os.path.join(self.log_dir_path,"params.json")
         
@@ -48,7 +48,7 @@ class Optimizer():
         "renaming acc[0] and co to acc_0"
         for i in temp_df.keys():
             temp_df[i.replace('[','_').replace(']','')]=temp_df[i]
-            if i!='t':
+            if i not in ('t','takeoff'):
                 temp_df=temp_df.drop(columns=[i])
         
         "accel at timestamp k+1 is computed using state at step k"
@@ -56,7 +56,7 @@ class Optimizer():
         new_temp_df=pd.DataFrame()
         
         for i in temp_df.keys():
-            if ('forces' in i) or ('torque' in i):
+            if ('forces' in i) or ('torque' in i) or ("joystick" in i) or (i in ('t')):
                 new_temp_df[i]=temp_df[i][1:].values
             else:
                 new_temp_df[i]=temp_df[i][:-1].values
@@ -65,7 +65,7 @@ class Optimizer():
         
         "split between X and Y"
 
-        self.data_prepared_train,self.data_prepared_test=train_test_split(self.data_prepared,test_size=0.98, random_state=41)
+        self.data_prepared_train,self.data_prepared_test=train_test_split(self.data_prepared,test_size=0.01, random_state=41)
         
         self.data_prepared_train,self.data_prepared_test=self.data_prepared_train.reset_index(),self.data_prepared_test.reset_index()
 
