@@ -116,7 +116,7 @@ class ModelRegressor(BaseEstimator):
         self.MoteurPhysique.q=np.array([x_data["q_%i"%(i)] for i in range(4)]).flatten()
         self.MoteurPhysique.omega=np.array([x_data["omega_%i"%(i)] for i in range(3)]).flatten()
         self.MoteurPhysique.R=tf3d.quaternions.quat2mat(self.MoteurPhysique.q).reshape((3,3))
-        
+        self.MoteurPhysique.takeoff=x_data["takeoff"]
         joystick_input=np.array([x_data['joystick_%i'%(i)] for i in range(4)]).flatten()
         
         self.MoteurPhysique.compute_dynamics(joystick_input,x_data['t'].values)
@@ -162,16 +162,31 @@ class ModelRegressor(BaseEstimator):
         # print("ypred batch\n\n",self.y_pred_batch,"\n\n",len(self.y_pred_batch))
         # print(self.y_train_batch,"\n\n",len(self.y_train_batch))
         
-        error=used_y_batch.reset_index()-self.y_pred_batch.reset_index()
+        error=(used_y_batch.reset_index()-self.y_pred_batch.reset_index())**2
         error=error.drop(columns=["index"])
-        sum_error=error.sum()
-        sum_error_forces=np.sum([sum_error['forces_%i'%(i)]**2 for i in range(3)])/len(sum_error)
-        sum_error_torque=np.sum([sum_error['torque_%i'%(i)]**2 for i in range(3)])/len(sum_error)
+        
+        print('Xbatch',used_x_batch)
+        print(used_x_batch.head())
+        print(used_x_batch.describe(),'\n')
+
+        print("Error",error)
+        print(error.head())
+        print(error.describe(),'\n')
+
+        sum_error_forces=np.mean([error['forces_%i'%(i)] for i in range(3)],axis=1)
+        print("SUM Error",sum_error_forces)
+        
+        print(error.iloc[[error['forces_0'].argmax()]])
+        print(used_x_batch.iloc[[error['forces_0'].argmax()]])
+        # print(sum_error_forces.head())
+        # print(sum_error_forces.describe(),'\n')        
+        
+        sum_error_torque=np.mean([error['torque_%i'%(i)] for i in range(3)],axis=1)
        
         # error_torque=
         cout_forces=1.0
         cout_torque=1.0
-        C=cout_forces*sum_error_forces + cout_torque*sum_error_torque       
+        C=cout_forces*np.sum(sum_error_forces) + cout_torque*np.sum(sum_error_torque)       
         
         if verbose or usage in ("test_eval","train_eval"):
             print("Epoch "+str(self.current_epoch)+" sample "+str(self.sample_nmbr) + "/" +str(len(self.x_train))+' cost : '+str(C))

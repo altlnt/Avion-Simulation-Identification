@@ -5,14 +5,18 @@ Created on Tue Apr 20 23:44:24 2021
 
 @author: alex
 """
+
+import sys
+sys.path.append('../')
+
 import pandas as pd
 from pylab import *
 import os
 import matplotlib.pyplot as plt
-%matplotlib qt
+# %matplotlib qt
 datadir=sort(os.listdir(os.path.join(os.getcwd(),"Logs")))[-2]
 
-data=pd.read_csv(os.path.join(os.getcwd(),"Logs",datadir,"log.txt"))
+data=pd.read_csv("./Logs/2021_05_14_15h06m36s/log.txt")
 
 f,axes=plt.subplots(nrows=5,ncols=6)
 

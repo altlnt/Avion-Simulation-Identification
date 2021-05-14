@@ -232,7 +232,9 @@ class MoteurPhysique():
             # Les calculs donnes des vecteurs lignes on transpose pour remettre en colone et dans le repère monde
             self.forces= self.R @ np.transpose(Effort[0].flatten()) +  self.Dict_world["g"]
             self.torque = np.transpose(Effort[1]).flatten()  
-
+            if self.takeoff==0:
+                self.forces[2]=min(self.forces[2],0)
+                
     def update_state(self,dt):
         
         "update omega"
@@ -269,8 +271,6 @@ class MoteurPhysique():
         "update forces"
                 
         self.acc=self.forces/m
-        if self.takeoff==0:
-            self.acc[2]=min(self.acc[2],0)
         self.speed=self.speed+self.acc*dt
         self.pos=self.pos+self.speed*dt        
 
@@ -287,7 +287,7 @@ class MoteurPhysique():
               'forces[0]','forces[1]','forces[2]',
               'torque[0]','torque[1]','torque[2]','alpha',
               'joystick[0]','joystick[1]','joystick[2]',  
-              'joystick[3]']
+              'joystick[3]','takeoff']
         
         t=self.last_t
         acc=self.acc
@@ -301,6 +301,7 @@ class MoteurPhysique():
         alpha=self.Dict_etats['alpha']
         euler = self.EulerAngle(q) * 180/np.pi
         joystick_input = self.joystick_input_log
+        TK=self.takeoff
 
         if 'log.txt' not in os.listdir(self.data_save_path):
             print("Here: Init")
@@ -324,7 +325,7 @@ class MoteurPhysique():
               forces[0],forces[1],forces[2],
               torque[0],torque[1],torque[2], alpha, 
               joystick_input[0], joystick_input[1],
-              joystick_input[2], joystick_input[3]]
+              joystick_input[2], joystick_input[3], TK]
         
         
         

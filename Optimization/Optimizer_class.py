@@ -65,7 +65,7 @@ class Optimizer():
         
         "split between X and Y"
 
-        self.data_prepared_train,self.data_prepared_test=train_test_split(self.data_prepared,test_size=0.2, random_state=42)
+        self.data_prepared_train,self.data_prepared_test=train_test_split(self.data_prepared,test_size=0.98, random_state=41)
         
         self.data_prepared_train,self.data_prepared_test=self.data_prepared_train.reset_index(),self.data_prepared_test.reset_index()
 
@@ -86,10 +86,10 @@ class Optimizer():
         # for i in range(3):
         #     print(self.estimator.cost(usage="train_eval"))
 
-            # for i in self.estimator.start_Dict_variables.keys():
-            #     print(self.estimator.start_Dict_variables[i])
-            #     print(self.estimator.current_Dict_variables[i])
-            #     print(self.estimator.MoteurPhysique.Dict_variables[i],"\n")
+        # for i in self.estimator.start_Dict_variables.keys():
+        #     print(self.estimator.start_Dict_variables[i])
+        #     print(self.estimator.current_Dict_variables[i])
+        #     print(self.estimator.MoteurPhysique.Dict_variables[i],"\n")
 
             
         # self.estimator.monitor.update()
@@ -106,12 +106,12 @@ class Optimizer():
 
 
         print("X: ",self.X_train.shape, "Y", self.Y_train.shape)
-        ti=time.time()
-        print(self.estimator.cost(usage="train_eval"))
-        print(time.time()-ti)
+        # ti=time.time()
+        # print(self.estimator.cost(usage="train_eval"))
+        # print(time.time()-ti)
         
         # self.estimator.generate_random_params(amp_dev=3)
-        # print(self.estimator.cost(usage="train_eval"))
+        print(self.estimator.cost(usage="train_eval"))
         # X0_params=self.estimator.Dict_variables_to_X(self.estimator.current_Dict_variables)
         # self.estimator.x_train_batch=self.estimator.x_train
         # self.estimator.y_train_batch=self.estimator.y_train
