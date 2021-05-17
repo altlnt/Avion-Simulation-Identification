@@ -21,7 +21,11 @@ from Simulation.MoteurPhysique_class import MoteurPhysique
 
 class ModelRegressor(BaseEstimator):  
 
-    def __init__(self, Dict_variables=None,train_batch_size=5,n_epochs=10,fitting_strategy="custom_gradient"):
+    def __init__(self, Dict_variables=None,
+                 train_batch_size=5,
+                 n_epochs=10,
+                 fitting_strategy="custom_gradient",
+                 learning_rate=1e-5):
 
         self.spath=None
         
@@ -33,6 +37,7 @@ class ModelRegressor(BaseEstimator):
         self.opti_variables_keys=['alpha_stall',
                                   'largeur_stall',
                                   'cd1sa',
+                                  'cl1fp',
                                   'cl1sa',
                                   'cd0sa',
                                   'cd1fp',
@@ -44,11 +49,14 @@ class ModelRegressor(BaseEstimator):
         
         if Dict_variables!=None:
             self.start_Dict_variables=Dict_variables
+            self.real_Dict_variables=Dict_variables
             self.current_Dict_variables=Dict_variables
             
         else:
             self.start_Dict_variables=self.MoteurPhysique.Dict_variables
             self.current_Dict_variables=self.MoteurPhysique.Dict_variables
+            self.real_Dict_variables=self.MoteurPhysique.Dict_variables
+            
             
         self.MoteurPhysique.Dict_variables=self.start_Dict_variables
         
@@ -62,22 +70,24 @@ class ModelRegressor(BaseEstimator):
         self.monitor=OptiMonitor_MPL()
         self.monitor.t=self.current_epoch
         self.monitor.y_train,self.monitor.y_eval= self.current_train_score,self.current_test_score
-        self.monitor.update(self.current_Dict_variables, self.start_Dict_variables)
+        self.monitor.init_params=self.start_Dict_variables
+        self.monitor.current_params=self.start_Dict_variables
+        self.monitor.update()
         self.sample_nmbr=0
-        
-        self.learning_rate=1.0
+        self.simulator_called=0
+        self.learning_rate=learning_rate
         return 
     
     def generate_random_params(self,amp_dev=0.0):
         
         X_params=self.Dict_variables_to_X(self.start_Dict_variables)
         new_X_params=X_params*(1+amp_dev*(np.random.random(size=len(X_params))-0.5))
-        self.current_Dict_variables=self.X_to_Dict_Variables(new_X_params)
-        
+        self.start_Dict_variables=self.X_to_Dict_Variables(new_X_params)
+        self.current_Dict_variables=self.start_Dict_variables
         # self.current_Dict_variables['masse']=2.6
-        print('[Randomization] Old / New / current variables: ')
+        print('\n[Randomization] Old / New current variables: ')
         for i in self.start_Dict_variables.keys():
-            print(i,self.start_Dict_variables[i],"/",self.current_Dict_variables[i])
+            print(i+": ",self.start_Dict_variables[i],"/",self.current_Dict_variables[i])
         print("\n")
         
         return
@@ -157,7 +167,8 @@ class ModelRegressor(BaseEstimator):
 
         # print(len(used_x_batch),usage)
         self.y_pred_batch=pd.concat([self.model(used_x_batch.iloc[[i]]) for i in range(len(used_x_batch))])
-        
+        self.simulator_called+=len(self.y_pred_batch)
+        print(self.simulator_called)
         # print(self.x_train_batch)
         # print("ypred batch\n\n",self.y_pred_batch,"\n\n",len(self.y_pred_batch))
         # print(self.y_train_batch,"\n\n",len(self.y_train_batch))
@@ -198,7 +209,7 @@ class ModelRegressor(BaseEstimator):
         C=cout_forces*np.sum(sum_error_forces) + cout_torque*np.sum(sum_error_torque)       
         
         if verbose or usage in ("test_eval","train_eval"):
-            print("Epoch "+str(self.current_epoch)+" sample "+str(self.sample_nmbr) + "/" +str(len(self.x_train))+' cost : '+str(C))
+            print("Epoch "+str(self.current_epoch)+" sample "+str(self.sample_nmbr) + "/" +str(len(self.x_train))+" "+usage+' cost : '+str(C))
 
         return C
         
@@ -210,14 +221,15 @@ class ModelRegressor(BaseEstimator):
         self.x_test = X_test
         self.y_test = Y_test
         
-        self.current_train_score=self.cost(usage="train_eval")
+        self.current_train_score=self.cost(usage="train_eval",verbose=True)
         
         if self.x_test is not None and self.y_test is not None:
-            self.current_test_score=self.cost(usage="test_eval")
+            self.current_test_score=self.cost(usage="test_eval",verbose=True)
             
         self.monitor.t=self.current_epoch
         self.monitor.y_train,self.monitor.y_eval= self.current_train_score,self.current_test_score
-        self.monitor.update(self.current_Dict_variables,self.start_Dict_variables)
+        self.monitor.current_params=self.current_Dict_variables
+        self.monitor.update()
         
         for i in range(self.n_epochs):
             "saving"
@@ -244,7 +256,8 @@ class ModelRegressor(BaseEstimator):
             "monitor update"
             self.monitor.t=self.current_epoch
             self.monitor.y_train,self.monitor.y_eval= self.current_train_score,self.current_test_score
-            self.monitor.update(self.current_Dict_variables, self.start_Dict_variables)
+            self.monitor.current_params=self.current_Dict_variables
+            self.monitor.update()
             # print(self.current_Dict_variables.keys())
             "opti loop"
             self.x_train_batch=[]
@@ -285,7 +298,7 @@ class ModelRegressor(BaseEstimator):
                         # print(scaler)
                         X0_params=self.Dict_variables_to_X(self.current_Dict_variables)
                         X0_params/=scaler
-                        G=self.compute_gradient(self.cost,X0_params,eps=1e-7)
+                        G=self.compute_gradient(self.cost,X0_params,eps=1e-8)
                         new_X=X0_params-self.learning_rate*G
                         new_X*=scaler
                         # print("finigrad")
@@ -294,20 +307,24 @@ class ModelRegressor(BaseEstimator):
                     # print(self.current_Dict_variables.keys())
                     for i in self.opti_variables_keys:
                         
-                         print('########################\nstart/prev/current '+i+' :',
+                         print('########################\nreal/start/prev/current '+i+' :',
+                              self.real_Dict_variables[i],
                               self.start_Dict_variables[i],
                               self.previous_Dict_variables[i],
                               self.current_Dict_variables[i])
                         
+                    print('########################')
                     self.x_train_batch=[]
                     self.y_train_batch=[]   
                     # input("Continue ?")
                     self.current_train_score=self.cost(usage="train_eval",verbose=True)
-                    self.monitor.update(self.current_Dict_variables, self.start_Dict_variables)
+                    self.monitor.current_params=self.current_Dict_variables
+
+                    self.monitor.update()
                     
                     if self.x_test is not None and self.y_test is not None:
                         self.current_test_score=self.cost(usage="test_eval",verbose=True)
-   
+
         return self
 
 
