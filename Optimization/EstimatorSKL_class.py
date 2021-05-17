@@ -19,6 +19,8 @@ import os
 from OptiMonitor_class import OptiMonitor_MPL
 from Simulation.MoteurPhysique_class import MoteurPhysique
 
+
+
 class ModelRegressor(BaseEstimator):  
 
     def __init__(self, Dict_variables=None,
@@ -75,7 +77,15 @@ class ModelRegressor(BaseEstimator):
         self.monitor.update()
         self.sample_nmbr=0
         self.simulator_called=0
+        
+        
         self.learning_rate=learning_rate
+        self.gradient_kp=1.0
+        self.gradient_kd=0.0
+        self.gradient_ki=0.0
+        self.gradient_integ_lim=-1.0
+        self.gradient_func=None
+        
         return 
     
     def generate_random_params(self,amp_dev=0.0):
@@ -111,11 +121,22 @@ class ModelRegressor(BaseEstimator):
         return Dict
 
         
-    def compute_gradient(self,func,X_params,eps=1e-6,verbose=True):
+    def compute_gradient(self,func,X_params,eps=1e-6,gradfunc=None,verbose=True):
         
-        grad=np.array([func(X_params+np.array([eps if j==i else 0 for j in range(len(X_params))])) - func(X_params-np.array([eps if j==i else 0 for j in range(len(X_params))])) for i in range(len(X_params))])
-
-        grad/=2*eps
+        if gradfunc is None:
+            grad=np.array([func(X_params+np.array([eps if j==i else 0 for j in range(len(X_params))])) - func(X_params-np.array([eps if j==i else 0 for j in range(len(X_params))])) for i in range(len(X_params))])
+    
+            grad/=2*eps
+            grad=grad/np.linalg.norm(grad)
+        else:
+            
+            " grad = -2 *(y_data-y_pred) "
+            gradbatch=[-2.0*(self.y_train_batch.iloc[[i]].values-self.y_pred_batch.iloc[[i]].values)@gradfunc(X_params) for i in range(len(self.y_pred_batch))]
+            gradbatch=np.array([i.reshape((len(X_params),)) for i in gradbatch])
+            print(gradbatch.shape)
+           
+            grad=np.mean(gradbatch,axis=1)
+            
         if verbose:
             print("Gradient : ", grad)
         return grad
@@ -168,15 +189,21 @@ class ModelRegressor(BaseEstimator):
         # print(len(used_x_batch),usage)
         self.y_pred_batch=pd.concat([self.model(used_x_batch.iloc[[i]]) for i in range(len(used_x_batch))])
         self.simulator_called+=len(self.y_pred_batch)
-        print(self.simulator_called)
+        # print(self.simulator_called)
         # print(self.x_train_batch)
         # print("ypred batch\n\n",self.y_pred_batch,"\n\n",len(self.y_pred_batch))
         # print(self.y_train_batch,"\n\n",len(self.y_train_batch))
         
-        error=(used_y_batch.reset_index()-self.y_pred_batch.reset_index())**2
-        error=error.drop(columns=["index"])
-        error['sum_forces']=error['forces_0']+error['forces_1']+error['forces_2']
-        error['sum_torques']=error['torque_0']+error['torque_1']+error['torque_2']
+        self.y_pred_batch_error=(used_y_batch.reset_index()-self.y_pred_batch.reset_index())**2
+        self.y_pred_batch_error=self.y_pred_batch_error.drop(columns=["index"])
+        
+        self.y_pred_batch_error['sum_forces']=self.y_pred_batch_error['forces_0']
+        self.y_pred_batch_error+=self.y_pred_batch_error['forces_1']
+        self.y_pred_batch_error+=self.y_pred_batch_error['forces_2']
+        
+        self.y_pred_batch_error['sum_torques']=self.y_pred_batch_error['torque_0']
+        self.y_pred_batch_error+=self.y_pred_batch_error['torque_1']
+        self.y_pred_batch_error+=self.y_pred_batch_error['torque_2']
 
         # print('Xbatch',used_x_batch)
         # # print(used_x_batch.head())
@@ -190,7 +217,7 @@ class ModelRegressor(BaseEstimator):
         # print("Faulty timestamps",used_x_batch.iloc[error.sort_values(by=['sum_forces'],ascending=False).head(10).index])
    
 
-        sum_error_forces=np.mean([error['forces_%i'%(i)] for i in range(3)],axis=1)
+        sum_error_forces=np.mean([self.y_pred_batch_error['forces_%i'%(i)] for i in range(3)],axis=1)
         
 
         # print(sum_error_forces.head())
@@ -201,7 +228,7 @@ class ModelRegressor(BaseEstimator):
         # print(error.sort_values(by=[""]))
 
         
-        sum_error_torque=np.mean([error['torque_%i'%(i)] for i in range(3)],axis=1)
+        sum_error_torque=np.mean([self.y_pred_batch_error['torque_%i'%(i)] for i in range(3)],axis=1)
        
         # error_torque=
         cout_forces=1.0
@@ -298,7 +325,11 @@ class ModelRegressor(BaseEstimator):
                         # print(scaler)
                         X0_params=self.Dict_variables_to_X(self.current_Dict_variables)
                         X0_params/=scaler
+                        
+                        
                         G=self.compute_gradient(self.cost,X0_params,eps=1e-8)
+                        
+                        
                         new_X=X0_params-self.learning_rate*G
                         new_X*=scaler
                         # print("finigrad")
@@ -324,7 +355,8 @@ class ModelRegressor(BaseEstimator):
                     
                     if self.x_test is not None and self.y_test is not None:
                         self.current_test_score=self.cost(usage="test_eval",verbose=True)
-
+                    break
+                break
         return self
 
 
