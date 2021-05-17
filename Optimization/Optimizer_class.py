@@ -96,7 +96,7 @@ class Optimizer():
         # print("X_train",self.X_train)
         # print("X_test",self.X_test)
         
-        self.estimator.generate_random_params(amp_dev=0.0)
+        self.estimator.generate_random_params(amp_dev=0.1)
         
         
         self.estimator.x_train=self.X_train
@@ -105,19 +105,19 @@ class Optimizer():
         self.estimator.y_test=self.Y_test
 
 
-        print("X: ",self.X_train.shape, "Y", self.Y_train.shape)
+        # print("X: ",self.X_train.shape, "Y", self.Y_train.shape)
         # ti=time.time()
         # print(self.estimator.cost(usage="train_eval"))
         # print(time.time()-ti)
         
         # self.estimator.generate_random_params(amp_dev=3)
-        print(self.estimator.cost(usage="train_eval"))
+        # print(self.estimator.cost(usage="train_eval"))
         # X0_params=self.estimator.Dict_variables_to_X(self.estimator.current_Dict_variables)
         # self.estimator.x_train_batch=self.estimator.x_train
         # self.estimator.y_train_batch=self.estimator.y_train
         # self.estimator.compute_gradient(self.estimator.cost,X0_params,eps=1e-7)
 
-        # self.estimator.fit(self.X_train,self.Y_train,self.X_test,self.Y_test)
+        self.estimator.fit(self.X_train,self.Y_train,self.X_test,self.Y_test)
         
         
         
