@@ -121,13 +121,20 @@ class ModelRegressor(BaseEstimator):
         return Dict
 
         
-    def compute_gradient(self,func,X_params,eps=1e-6,gradfunc=None,verbose=True):
+    def compute_gradient(self,func,X_params,eps=1e-6,gradfunc=None,verbose=True, test=None):
         
+        if not test==None :
+            x_data = self.x_train_batch.iloc[[5]]
+            joystick_input=np.array([x_data['joystick_%i'%(i)] for i in range(4)]).flatten()
+
+            Grad_Force, Grad_Torque = self.MoteurPhysique.compute_dynamics(joystick_input, x_data['t'].values, compute_gradF=True)
+            print("Grad force sympy: ", Grad_Force)
         if gradfunc is None:
             grad=np.array([func(X_params+np.array([eps if j==i else 0 for j in range(len(X_params))])) - func(X_params-np.array([eps if j==i else 0 for j in range(len(X_params))])) for i in range(len(X_params))])
     
             grad/=2*eps
             grad=grad/np.linalg.norm(grad)
+            print("ancien calcul : ", grad)
         else:
             
             " grad = -2 *(y_data-y_pred) "
@@ -327,7 +334,7 @@ class ModelRegressor(BaseEstimator):
                         X0_params/=scaler
                         
                         
-                        G=self.compute_gradient(self.cost,X0_params,eps=1e-8)
+                        G=self.compute_gradient(self.cost,X0_params,eps=1e-8, test=True)
                         
                         
                         new_X=X0_params-self.learning_rate*G
@@ -355,8 +362,7 @@ class ModelRegressor(BaseEstimator):
                     
                     if self.x_test is not None and self.y_test is not None:
                         self.current_test_score=self.cost(usage="test_eval",verbose=True)
-                    break
-                break
+
         return self
 
 

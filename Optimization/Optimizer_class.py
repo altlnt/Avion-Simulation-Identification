@@ -109,7 +109,7 @@ class Optimizer():
         # ti=time.time()
         self.estimator.cost(usage="train_eval")
         X0params=self.estimator.Dict_variables_to_X(self.estimator.real_Dict_variables)
-        G=self.estimator.compute_gradient(self.estimator.cost,X0params,eps=1e-8,gradfunc=lambda x: np.ones((6,len(x))))
+        G=self.estimator.compute_gradient(self.estimator.cost,X0params,eps=1e-8,gradfunc=lambda x: np.ones((6,len(x))), test=True)
         # print(G)
         # print("X: ",self.X_test.shape, "Y", self.Y_test.shape)
         # print()
