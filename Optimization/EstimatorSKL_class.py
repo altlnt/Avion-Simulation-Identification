@@ -198,12 +198,12 @@ class ModelRegressor(BaseEstimator):
         self.y_pred_batch_error=self.y_pred_batch_error.drop(columns=["index"])
         
         self.y_pred_batch_error['sum_forces']=self.y_pred_batch_error['forces_0']
-        self.y_pred_batch_error+=self.y_pred_batch_error['forces_1']
-        self.y_pred_batch_error+=self.y_pred_batch_error['forces_2']
+        self.y_pred_batch_error['sum_forces']+=self.y_pred_batch_error['forces_1']
+        self.y_pred_batch_error['sum_forces']+=self.y_pred_batch_error['forces_2']
         
         self.y_pred_batch_error['sum_torques']=self.y_pred_batch_error['torque_0']
-        self.y_pred_batch_error+=self.y_pred_batch_error['torque_1']
-        self.y_pred_batch_error+=self.y_pred_batch_error['torque_2']
+        self.y_pred_batch_error['sum_torques']+=self.y_pred_batch_error['torque_1']
+        self.y_pred_batch_error['sum_torques']+=self.y_pred_batch_error['torque_2']
 
         # print('Xbatch',used_x_batch)
         # # print(used_x_batch.head())

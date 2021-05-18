@@ -145,7 +145,6 @@ class MoteurPhysique():
         
         return np.array([roll,pitch,yaw])
 
-    
     def compute_dynamics(self,joystick_input,t):
         # Ouverture du fichier de fonction, on obtient une liste de fonction comme suit : 
             # 0 : VelinLDPlane_function

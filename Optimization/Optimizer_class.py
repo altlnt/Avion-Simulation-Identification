@@ -97,7 +97,7 @@ class Optimizer():
         # print("X_train",self.X_train)
         # print("X_test",self.X_test)
         
-        self.estimator.generate_random_params(amp_dev=0.0)
+        self.estimator.generate_random_params(amp_dev=0.1)
         
         
         self.estimator.x_train=self.X_train
