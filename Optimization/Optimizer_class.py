@@ -70,10 +70,10 @@ class Optimizer():
         
         self.data_prepared_train,self.data_prepared_test=self.data_prepared_train.reset_index(),self.data_prepared_test.reset_index()
 
-        self.X_train=self.data_prepared_train[[i for i in self.data_prepared.keys() if not (('forces' in i) or ('torque' in i))]]
-        self.X_test=self.data_prepared_test[[i for i in self.data_prepared.keys() if not (('forces' in i) or ('torque' in i))]]
-        self.Y_train=self.data_prepared_train[[i for i in self.data_prepared.keys() if (('forces' in i) or ('torque' in i))]]
-        self.Y_test=self.data_prepared_test[[i for i in self.data_prepared.keys() if (('forces' in i) or ('torque' in i))]]
+        self.X_train=self.data_prepared_train[[i for i in self.data_prepared.keys() if not (('forces' in i) or ('torque' in i))]].values
+        self.X_test=self.data_prepared_test[[i for i in self.data_prepared.keys() if not (('forces' in i) or ('torque' in i))]].values
+        self.Y_train=self.data_prepared_train[[i for i in self.data_prepared.keys() if (('forces' in i) or ('torque' in i))]].values
+        self.Y_test=self.data_prepared_test[[i for i in self.data_prepared.keys() if (('forces' in i) or ('torque' in i))]].values
 
     
         return      

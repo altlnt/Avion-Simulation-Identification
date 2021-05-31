@@ -152,12 +152,12 @@ class ModelRegressor(BaseEstimator):
             Gradien_results = []
             
             for i in range(len(self.x_train)):
-                t, joystick_input = self.update_input_simulator(self.x_train.iloc[[i]])
+                t, joystick_input = self.update_input_simulator(self.x_train[i])
                 self.MoteurPhysique.compute_dynamics(joystick_input, t , compute_gradF=True)  
                 Gradien_results.append(np.r_[self.MoteurPhysique.grad_forces,self.MoteurPhysique.grad_torque])
                 
             " grad = -2 *(y_data-y_pred) * gradient "
-            gradbatch=[(-2.0*(self.y_train.iloc[[i]].values-self.y_pred_batch.iloc[[i]].values)@Gradien_results[i])\
+            gradbatch=[(-2.0*(self.y_train[i]-self.y_pred_batch[i])@Gradien_results[i])\
                         for i in range(len(self.y_pred_batch))]
             gradbatch=np.array([i.reshape((len(X_params),)) for i in gradbatch])
             grad = np.sum(gradbatch[i] for i in range(len(gradbatch)))/ len(gradbatch)
@@ -209,7 +209,7 @@ class ModelRegressor(BaseEstimator):
             used_y_batch=self.y_test
 
         # print(len(used_x_batch),usage)
-        self.y_pred_batch=pd.concat([self.model(used_x_batch.iloc[[i]]) for i in range(len(used_x_batch))])
+        self.y_pred_batch=pd.concat([self.model(used_x_batch[i]) for i in range(len(used_x_batch))])
         print('sssssss', used_y_batch)
         self.simulator_called+=len(self.y_pred_batch)
         # print(self.simulator_called)
@@ -323,16 +323,16 @@ class ModelRegressor(BaseEstimator):
 
             while self.sample_nmbr<(len(self.x_train)-1):     
                 
-                self.x_train_batch.append(self.x_train.loc[[self.sample_nmbr]])
-                self.y_train_batch.append(self.y_train.loc[[self.sample_nmbr]])
+                self.x_train_batch.append(self.x_train[self.sample_nmbr])
+                self.y_train_batch.append(self.y_train[self.sample_nmbr])
                 self.sample_nmbr+=1
     
                 if len(self.x_train_batch)==self.train_batch_size or (self.sample_nmbr==len(self.x_train)-1):
                     
                     "batch is full beginning opti"
                     
-                    self.x_train_batch=pd.concat(self.x_train_batch)
-                    self.y_train_batch=pd.concat(self.y_train_batch)                        
+                    self.x_train_batch=np.vstack(self.x_train_batch)
+                    self.y_train_batch=np.vstack(self.y_train_batch)                        
                     self.previous_Dict_variables=self.current_Dict_variables
 
                     if self.fitting_strategy=="scipy":
