@@ -15,6 +15,7 @@ from datetime import datetime
 import transforms3d as tf3d
 import dill as dill
 import json
+from collections import OrderedDict
 
 dill.settings['recurse'] = True
 
@@ -37,6 +38,7 @@ class MoteurPhysique():
         
         #   Translation
         self.forces,self.torque=np.zeros(3),np.zeros(3)
+        self.grad_forces, self.grad_torque = np.zeros((3,10)), np.zeros((3,10))
         self.acc=np.zeros(3)
         self.speed=np.array([0.01,0,0])
         self.pos=np.zeros(3)
@@ -48,7 +50,6 @@ class MoteurPhysique():
         self.R=tf3d.quaternions.quat2mat(self.q) 
         self.moy_rotor_speed = 200
         self.takeoff =0
-        self.Aire =  [0.03* 1.292 * 0.5, 0.03* 1.292 * 0.5, 0.01* 1.292 * 0.5, 0.01* 1.292 * 0.5, 0.04* 1.292 * 0.5]
         
         self.Effort_function = dill.load(open('../Simulation/function_moteur_physique','rb'))
         self.joystick_input = [0,0,0,0,0]
@@ -61,6 +62,7 @@ class MoteurPhysique():
         ####### Dictionnaire des paramètres pour l'optimisation
         self.Dict_variables = {"masse": 2.5 , \
                                "inertie": np.diag([0.2,0.15,0.15]),\
+                               "aire" : [0.03* 1.292 * 0.5, 0.03* 1.292 * 0.5, 0.01* 1.292 * 0.5, 0.01* 1.292 * 0.5, 0.04* 1.292 * 0.5],\
                                "cp_list": [np.array([0,0.45,0],       dtype=np.float).flatten(), \
                                            np.array([0,-0.45,0],      dtype=np.float).flatten(), \
                                            np.array([-0.5,0.15,0],    dtype=np.float).flatten(),\
@@ -71,7 +73,6 @@ class MoteurPhysique():
                                "largeur_stall" : 30.0*np.pi/180,                  \
                                "cd0sa" : 0.045,\
                                "cd0fp" : 0.045,\
-                               "cl1fp" : 1.5, \
                                "cd1sa" : 4.55, \
                                "cl1sa" : 5, \
                                "cd1fp" : 2.5, \
@@ -81,6 +82,9 @@ class MoteurPhysique():
                                "Ct": 2.5e-5, \
                                "Cq": 1e-8, \
                                "Ch": 1e-4}
+            
+        self.Dict_variables = OrderedDict(sorted(self.Dict_variables.items(), key=lambda t: t[0]))
+
             
         # Dictionnaire des états pour la jacobienne
         self.Theta = ['alpha_stall',
@@ -93,6 +97,8 @@ class MoteurPhysique():
                         'coeff_drag_shift',
                         'coeff_lift_shift',
                         'coef_lift_gain']
+
+        
             
         # Dictionnaires des états
         self.Dict_etats     = {"position" : self.pos,    \
@@ -121,7 +127,7 @@ class MoteurPhysique():
                 keys=dic.keys() 
                 for key in keys:
                     self.SaveDict[key]=np.array(dic[key]).tolist()
-    
+            self.SaveDict['mean_rotor_speed']=self.moy_rotor_speed
             with open(os.path.join(self.save_path_base,'params.json'), 'w') as fp:
                 json.dump(self.SaveDict, fp)
         
@@ -166,7 +172,10 @@ class MoteurPhysique():
             # 3 : compute_alpha_sigma()
             # 4 : Coeff_function qui calcul les coeffs aéro pour toutes les surfaces tel que [Cl, Cd]
             # 5 : Effort_Aero qui renvoi un liste tel que [Force, Couple]
-            # 6 : Gradient des efforts d'une aile en fonction du gradient de Cl et Cd
+            # 6 : Gradient de sigma (pas utilisé dans cette version)
+            # 7-8 : Gradient de Cl, et de Cd respectivement, renvoi un vecteur 
+            # 9 : Sommes des gradients des efforts pour chaques ailes, et moteurs
+            
         T_init=self.T_init    # Temps pendant laquelle les forces ne s'appliquent pas sur le drone
         self.joystick_input_log= joystick_input
 
@@ -185,14 +194,12 @@ class MoteurPhysique():
                                                 (self.joystick_input[1] - self.joystick_input[2]) \
                                                 , (self.joystick_input[1] + self.joystick_input[2]) , 0]) \
             
-                                                
         self.Dict_Commande["rotor_speed"] =  self.moy_rotor_speed + self.joystick_input[3]
                                                                      
-
-        
         R_list         = [self.R, self.R, self.Rotation(self.R, 45), self.Rotation(self.R,-45), self.R]
         v_W            = self.Dict_world["wind"]
         frontward_Body = np.transpose(np.array([[1,0,0]]))
+        A_list         = self.Dict_variables["aire"]
         alpha_0_list   = self.Dict_variables["alpha0"]
         alpha_s        = self.Dict_variables["alpha_stall"]
         delta_s        = self.Dict_variables["largeur_stall"]  
@@ -205,81 +212,127 @@ class MoteurPhysique():
         k0    = self.Dict_variables["coeff_drag_shift"]
         k1    = self.Dict_variables["coeff_lift_shift"]
         k2    = self.Dict_variables["coef_lift_gain"]
-        cd = [0,0,0,0,0]
-        cl = [0,0,0,0,0]
 
-        if (t)<T_init:
-            self.forces= np.array([0,0,0]) 
-            self.torque= np.array([0,0,0])
-            if not self.called_from_opti:
-                print("Début des commandes dans :", T_init-t)   
-
-        else:  
-            if compute_gradF==None:
+        if compute_gradF==None:
+            cd = [0,0,0,0,0]
+            cl = [0,0,0,0,0]
+            if (t)<T_init:
+                self.forces= np.array([0,0,0]) 
+                self.torque= np.array([0,0,0])
+                if not self.called_from_opti:
+                    print("Début des commandes dans :", T_init-t)
+            else: 
                 for p, cp in enumerate(cp_list) :          # Cette boucle calcul les coefs aéro pour chaque surface 
                     VelinLDPlane   = self.Effort_function[0](self.omega, cp, self.speed.flatten(), v_W, R_list[p].flatten())
                     dragDirection  = self.Effort_function[1](self.omega, cp, self.speed.flatten(), v_W, R_list[p].flatten())
                     liftDirection  = self.Effort_function[2](self.omega, cp, self.speed.flatten(), v_W, R_list[p].flatten())
-                    alpha, sigma = self.Effort_function[3](dragDirection, liftDirection, frontward_Body, VelinLDPlane,\
-                                                      alpha_0_list[p], alpha_s, delta_s)
-
-                    cl[p] = self.Effort_function[4](alpha + (k0* self.Dict_Commande["delta"][p]), sigma, alpha_0_list[p],\
-                                                    self.Dict_Commande["delta"][p], \
-                                                    cl1sa, cd1fp,k2, cd0fp, \
-                                                         cd0sa, cd1sa, cd1fp)[0]
-                    cd[p] = self.Effort_function[4](alpha + (k1* self.Dict_Commande["delta"][p]), sigma, alpha_0_list[p],\
-                                                    self.Dict_Commande["delta"][p], \
-                                                    cl1sa, cd1fp,k2, cd0fp, \
-                                                         cd0sa, cd1sa, cd1fp)[1]
-                        
+                    alpha = self.Effort_function[3](dragDirection, liftDirection, frontward_Body, VelinLDPlane)
+                    cl[p] = self.Effort_function[4](alpha, alpha_0_list[p],\
+                                                   alpha_s, self.Dict_Commande["delta"][p], \
+                                                   delta_s, cl1sa, cd1fp, k0, k1, k2, cd0fp, \
+                                                        cd0sa, cd1sa)[0]
+                    cd[p] = self.Effort_function[4](alpha, alpha_0_list[p],\
+                                                   alpha_s, self.Dict_Commande["delta"][p], \
+                                                   delta_s, cl1sa, cd1fp, k0, k1, k2, cd0fp, \
+                                                        cd0sa, cd1sa)[1]
                 self.Dict_etats['alpha'] = alpha
                 self.Dict_Var_Effort["Cl_list"]=cl
                 self.Dict_Var_Effort["Cd_list"]=cd
-    
-                Effort=self.Effort_function[5](self.omega, self.R.flatten(), self.speed.flatten(),\
-                                                  v_W, cp_list,\
-                                                  self.Dict_Var_Effort["Cd_list"], \
-                                                  self.Dict_Var_Effort["Cl_list"], \
+
+                Effort=self.Effort_function[5](A_list, self.omega, self.R.flatten(), self.speed.flatten(),\
+                                                  v_W, cp_list, cd, cl, \
                                                   self.Dict_variables["Ct"], self.Dict_variables["Cq"], \
                                                   self.Dict_variables["Ch"],self.Dict_Commande["rotor_speed"])
-            
+
                 # Les calculs donnes des vecteurs lignes on transpose pour remettre en colone et dans le repère monde
                 self.forces= self.R @ np.transpose(Effort[0].flatten()) +  self.Dict_variables["masse"] *self.Dict_world["g"]
                 self.torque = np.transpose(Effort[1]).flatten()  
                 if self.takeoff==0:
                     self.forces[2]=min(self.forces[2],0)
+                    
+        ################## Calcul du gradient #################
+        else:
+            Grad_Sum_Force_Wing = np.zeros((3,len(self.Theta)))
+            Grad_Sum_Torque_Wing =  np.zeros((3,len(self.Theta)))
+            grad_cd = [[0 for i in range(len(self.Theta))] for j in range(len(cp_list))]
+            grad_cl =  [[0 for i in range(len(self.Theta))] for j in range(len(cp_list))]
+            if (t)<T_init:
+                 self.grad_forces, self.grad_torque=np.zeros((3,len(self.Theta))),np.zeros((3,len(self.Theta)))
             else: 
-                grad_Force_wing = [0 for i in range(len(self.Theta))]
-                grad_Torque_wing =[0 for i in range(len(self.Theta))]
-                Grad_Sum_F = [[0 for i in range(3)]for i in range(len(self.Theta))]
-                Grad_Sum_T = [[0 for i in range(3)]for i in range(len(self.Theta))]
-                for p, cp in enumerate(cp_list) :          # Cette boucle calcul les coefs aéro pour chaque surface 
-                   VelinLDPlane   = self.Effort_function[0](self.omega, cp, self.speed.flatten(), v_W, R_list[p].flatten())
-                   dragDirection  = self.Effort_function[1](self.omega, cp, self.speed.flatten(), v_W, R_list[p].flatten())
-                   liftDirection  = self.Effort_function[2](self.omega, cp, self.speed.flatten(), v_W, R_list[p].flatten())
-                   alpha, sigma = self.Effort_function[3](dragDirection, liftDirection, frontward_Body, VelinLDPlane,\
-                                                     alpha_0_list[p], alpha_s, delta_s)
-                   cl[p] = self.Effort_function[6](alpha + (k0* self.Dict_Commande["delta"][p]), sigma, alpha_0_list[p],\
-                                                   self.Dict_Commande["delta"][p], \
-                                                   cl1sa, cd1fp,k2, cd0fp, \
-                                                        cd0sa, cd1sa, cd1fp)
-                   cd[p] = self.Effort_function[7](alpha + (k1* self.Dict_Commande["delta"][p]), sigma, alpha_0_list[p],\
-                                               self.Dict_Commande["delta"][p], \
-                                                    cl1sa, cd1fp,k2, cd0fp, \
-                                                         cd0sa, cd1sa, cd1fp)
+                for p, cp in enumerate(cp_list) :          
+                    VelinLDPlane   = self.Effort_function[0](self.omega, cp, self.speed.flatten(), v_W, R_list[p].flatten())
+                    dragDirection  = self.Effort_function[1](self.omega, cp, self.speed.flatten(), v_W, R_list[p].flatten())
+                    liftDirection  = self.Effort_function[2](self.omega, cp, self.speed.flatten(), v_W, R_list[p].flatten())
+                    alpha = self.Effort_function[3](dragDirection, liftDirection, frontward_Body, VelinLDPlane)
+         
+                    grad_cl[p] = self.Effort_function[7](alpha, alpha_0_list[p],\
+                                                    alpha_s, self.Dict_Commande["delta"][p], \
+                                                    delta_s, cl1sa, cd1fp, k0, k1, k2, cd0fp, \
+                                                         cd0sa, cd1sa).flatten()
+                    grad_cd[p] = self.Effort_function[8](alpha, alpha_0_list[p],\
+                                               alpha_s, self.Dict_Commande["delta"][p], \
+                                                    delta_s, cl1sa, cd1fp, k0, k1, k2, cd0fp, \
+                                                         cd0sa, cd1sa).flatten()
+
+                   ##### Transfert des efforts dans le bon repère suivant les parties du drones ####
+                    if p == 2:
+                        grad_force_wing  = self.Effort_function[9](A_list[p], grad_cd[p].flatten(), grad_cl[p].flatten(), \
+                                                                             self.speed.flatten(), v_W, self.omega, np.array([0,0,0]), np.eye(3).flatten())
+                        grad_torque_wing = self.Effort_function[10](A_list[p], grad_cd[p].flatten(), grad_cl[p].flatten(),\
+                                                                        self.speed.flatten(), v_W, self.omega, np.array([0,0,0]), np.eye(3).flatten())
+                        for q in range(max(np.shape(grad_force_wing))):
+                            grad_force_wing[:,q] = self.Rotation(np.eye(3),45).T @ grad_force_wing[:,q]
+                            grad_torque_wing[:,q] = np.cross(cp,self.Rotation(np.eye(3),45).T @ grad_force_wing[:,q])
+                        Grad_Sum_Force_Wing  = Grad_Sum_Force_Wing +  grad_force_wing
+                        Grad_Sum_Torque_Wing = Grad_Sum_Torque_Wing + grad_torque_wing
+                    elif p==3:
+                        grad_force_wing  = self.Effort_function[9](A_list[p], grad_cd[p].flatten(), grad_cl[p].flatten(), \
+                                                                             self.speed.flatten(), v_W, self.omega, np.array([0,0,0]), np.eye(3).flatten())
+                        grad_torque_wing = self.Effort_function[10](A_list[p], grad_cd[p].flatten(), grad_cl[p].flatten(),\
+                                                                               self.speed.flatten(), v_W, self.omega, np.array([0,0,0]), np.eye(3).flatten())
+                        for q in range(max(np.shape(grad_force_wing))):
+                            grad_force_wing[:,q] = self.Rotation(np.eye(3),-45).T @ grad_force_wing[:,q]
+                            grad_torque_wing[:,q] = np.cross(cp,self.Rotation(np.eye(3),-45).T @ grad_force_wing[:,q])
+                        Grad_Sum_Force_Wing  = Grad_Sum_Force_Wing +  grad_force_wing
+                        Grad_Sum_Torque_Wing = Grad_Sum_Torque_Wing + grad_torque_wing         
+                    else: 
+                        grad_force_wing  = self.Effort_function[9](A_list[p], grad_cd[p].flatten(), grad_cl[p].flatten(), \
+                                                                             self.speed.flatten(), v_W, self.omega, cp, R_list[p].flatten())
+                        grad_torque_wing = self.Effort_function[10](A_list[p], grad_cd[p].flatten(), grad_cl[p].flatten(),\
+                                                                               self.speed.flatten(), v_W, self.omega, cp, R_list[p].flatten())
+                       
+                        Grad_Sum_Force_Wing  = Grad_Sum_Force_Wing + grad_force_wing
+                        Grad_Sum_Torque_Wing =  Grad_Sum_Torque_Wing + grad_torque_wing
+                     
+                ## Calul du gradient pour les moteurs.
+                grad_Sum_rotor_force, grad_Sum_rotor_torque = self.Effort_function[11](self.omega, self.R.flatten(), self.speed.flatten(), v_W,\
+                                                                              self.Dict_variables["Ct"], self.Dict_variables["Cq"], \
+                                                                                  self.Dict_variables["Ch"],self.Dict_Commande["rotor_speed"])
+                ### Vérification de la condition de décollage qui permet d'avoir un gradient de force suivant z nul.
+                if self.takeoff==0:
+                    for col in range(10):
+                        Grad_Sum_Force_Wing[:,col][2]=0
                         
-                   grad_Force_wing  = grad_Force_wing + self.Effort_function[8](self.Aire[p], cd[p].flatten(), cl[p].flatten(), self.speed.flatten(), v_W, self.omega, cp, R_list[p].flatten())
-                   grad_Torque_wing = grad_Torque_wing + self.Effort_function[9](self.Aire[p], cd[p].flatten(), cl[p].flatten(), self.speed.flatten(), v_W, self.omega, cp, R_list[p].flatten())
+                self.grad_forces= grad_Sum_rotor_force + Grad_Sum_Force_Wing
+                self.grad_torque =grad_Sum_rotor_torque +  np.reshape(Grad_Sum_Torque_Wing, (len(self.Theta),3)).T
+               
+                # ##### Methode compacte, fonctionne correctement mais moins rapide (environ 3 fois plus lente) ########
+                # Grad_Force, self.grad_torque=self.Effort_function[12](A_list, self.omega, self.R.flatten(), self.speed.flatten(),\
+                #                                   v_W, cp_list, grad_cd, grad_cl, \
+                #                                   self.Dict_variables["Ct"], self.Dict_variables["Cq"], \
+                #                                   self.Dict_variables["Ch"],self.Dict_Commande["rotor_speed"])
+                # self.grad_forces=[]
+                # for col in range((np.size(self.Theta))):
+                #     if self.takeoff==0:
+                #         Grad_Force[:,col]=np.array((Grad_Force[0,col],Grad_Force[1,col],0))
+                #     else :
+                #         Grad_Force[:,col]=np.array((Grad_Force[0,col],Grad_Force[1,col],Grad_Force[2,col]))
 
-                   for col in range(len(self.Theta)):
-                         Grad_Sum_F[col] = Grad_Sum_F[col] + self.R @ np.transpose(grad_Force_wing[:,col].flatten()) + self.Dict_variables["masse"]  *self.Dict_world["g"]
-                         Grad_Sum_T[col] = Grad_Sum_T[col] + self.R @ np.transpose(grad_Torque_wing[:,col].flatten())
-                grad_Sum_rotor_force, grad_Sum_rotor_torque = self.Effort_function[10](self.omega, self.R.flatten(), self.speed.flatten(), v_W,\
-                                                                             self.Dict_variables["Ct"], self.Dict_variables["Cq"], \
-                                                                                 self.Dict_variables["Ch"],self.Dict_Commande["rotor_speed"])
+                #     self.grad_forces = np.append(self.grad_forces, Grad_Force[:,col])
+                # self.grad_forces=np.reshape(self.grad_forces, (len(self.Theta),3)).T
+                # print(self.grad_forces)
+                # input("continue ?")
 
-                return (np.reshape(Grad_Sum_F,(3,10)) +grad_Sum_rotor_force),  np.reshape(Grad_Sum_T,(3,10)) +grad_Sum_rotor_torque
-                
     def update_state(self,dt):
         
         "update omega"

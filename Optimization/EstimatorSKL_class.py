@@ -18,7 +18,7 @@ import json
 import os
 from OptiMonitor_class import OptiMonitor_MPL
 from Simulation.MoteurPhysique_class import MoteurPhysique
-
+import time
 
 
 class ModelRegressor(BaseEstimator):  
@@ -39,7 +39,6 @@ class ModelRegressor(BaseEstimator):
         self.opti_variables_keys=['alpha_stall',
                                   'largeur_stall',
                                   'cd1sa',
-                                  'cl1fp',
                                   'cl1sa',
                                   'cd0sa',
                                   'cd1fp',
@@ -92,9 +91,9 @@ class ModelRegressor(BaseEstimator):
         
         X_params=self.Dict_variables_to_X(self.start_Dict_variables)
         new_X_params=X_params*(1+amp_dev*(np.random.random(size=len(X_params))-0.5))
-        self.start_Dict_variables=self.X_to_Dict_Variables(new_X_params)
-        self.current_Dict_variables=self.start_Dict_variables
-        # self.current_Dict_variables['masse']=2.6
+        self.start_Dict_variables=self.X_to_Dict_Variables(X_params)
+        self.current_Dict_variables=self.X_to_Dict_Variables(new_X_params)
+        self.current_Dict_variables['masse']=2.6
         print('\n[Randomization] Old / New current variables: ')
         for i in self.start_Dict_variables.keys():
             print(i+": ",self.start_Dict_variables[i],"/",self.current_Dict_variables[i])
@@ -120,45 +119,56 @@ class ModelRegressor(BaseEstimator):
                 Dict[i]=self.start_Dict_variables[i]
         return Dict
 
-        
-    def compute_gradient(self,func,X_params,eps=1e-6,gradfunc=None,verbose=True, test=None):
-        
-        if not test==None :
-            x_data = self.x_train_batch.iloc[[5]]
-            joystick_input=np.array([x_data['joystick_%i'%(i)] for i in range(4)]).flatten()
-
-            Grad_Force, Grad_Torque = self.MoteurPhysique.compute_dynamics(joystick_input, x_data['t'].values, compute_gradF=True)
-            print("Grad force sympy: ", Grad_Force)
-        if gradfunc is None:
-            grad=np.array([func(X_params+np.array([eps if j==i else 0 for j in range(len(X_params))])) - func(X_params-np.array([eps if j==i else 0 for j in range(len(X_params))])) for i in range(len(X_params))])
-    
-            grad/=2*eps
-            grad=grad/np.linalg.norm(grad)
-            print("ancien calcul : ", grad)
-        else:
-            
-            " grad = -2 *(y_data-y_pred) "
-            gradbatch=[-2.0*(self.y_train_batch.iloc[[i]].values-self.y_pred_batch.iloc[[i]].values)@gradfunc(X_params) for i in range(len(self.y_pred_batch))]
-            gradbatch=np.array([i.reshape((len(X_params),)) for i in gradbatch])
-            print(gradbatch.shape)
-           
-            grad=np.mean(gradbatch,axis=1)
-            
-        if verbose:
-            print("Gradient : ", grad)
-        return grad
-        
-    def model(self, x_data):
-        
+    def update_input_simulator(self, x_data):
+        # self.MoteurPhysique.moy_rotor_speed=x_data["mean_rotor_speed"].values
         self.MoteurPhysique.speed=np.array([x_data["speed_%i"%(i)] for i in range(3)]).flatten()
         self.MoteurPhysique.q=np.array([x_data["q_%i"%(i)] for i in range(4)]).flatten()
         self.MoteurPhysique.omega=np.array([x_data["omega_%i"%(i)] for i in range(3)]).flatten()
         self.MoteurPhysique.R=tf3d.quaternions.quat2mat(self.MoteurPhysique.q).reshape((3,3))
         self.MoteurPhysique.takeoff=x_data["takeoff"].values
+        t  = x_data['t'].values
         joystick_input=np.array([x_data['joystick_%i'%(i)] for i in range(4)]).flatten()
+        return t, joystick_input
         
-        self.MoteurPhysique.compute_dynamics(joystick_input,x_data['t'].values)
+    def compute_gradient(self,func,X_params,eps=1e-6,gradfunc=None,verbose=True):
+        time1=time.time()           
+        if gradfunc is None:
+            grad=np.array([(func(X_params+np.array([eps if j==i else 0 for j in range(len(X_params))])) -\
+                           func(X_params-np.array([eps if j==i else 0 for j in range(len(X_params))]))) for i in range(len(X_params))])
+            grad/=(2*eps)
+            if not np.linalg.norm(grad)==0:
+                grad = grad/np.linalg.norm(grad)
+        else:
+            
+            self.MoteurPhysique.Dict_variables=self.X_to_Dict_Variables(X_params)
+            self.MoteurPhysique.Theta = self.opti_variables_keys
+            Gradien_results = []
+            
+            for i in range(len(self.x_train)):
+                t, joystick_input = self.update_input_simulator(self.x_train.iloc[[i]])
+                self.MoteurPhysique.compute_dynamics(joystick_input, t , compute_gradF=True)  
+                Gradien_results.append(np.r_[self.MoteurPhysique.grad_forces,self.MoteurPhysique.grad_torque])
+                
+                
+            " grad = -2 *(y_data-y_pred) * gradient "
+            gradbatch=[(-2.0*abs(self.y_train.iloc[[i]].values-self.y_pred_batch.iloc[[i]].values)@Gradien_results[i])\
+                        for i in range(len(self.y_pred_batch))]
+            gradbatch=np.array([i.reshape((len(X_params),)) for i in gradbatch])
+            grad = np.sum(gradbatch[i] for i in range(len(gradbatch)))/ len(gradbatch)
+            
+            if not np.linalg.norm(grad)==0:
+                grad = grad/np.linalg.norm(grad)
+        if verbose:
+            print("Gradient : ")
+            for i in range(len(grad)):
+                print(grad[i])
+                
+        print(time.time()-time1)
+        return grad
         
+    def model(self, x_data):
+        t, joystick_input = self.update_input_simulator(x_data)        
+        self.MoteurPhysique.compute_dynamics(joystick_input,t)
         d=np.r_[self.MoteurPhysique.forces,self.MoteurPhysique.torque]
         
         output=pd.DataFrame(data=d.reshape((1,6)),columns=['forces_0','forces_1','forces_2',
@@ -174,7 +184,6 @@ class ModelRegressor(BaseEstimator):
             raise
         
         DictVariable_X=self.X_to_Dict_Variables(X_params) if (X_params is not None) else self.current_Dict_variables
-        
         self.MoteurPhysique.Dict_variables=DictVariable_X
         self.current_Dict_variables = self.MoteurPhysique.Dict_variables
         # print(self.x_train_batch.iloc[[0]].head(),'\n\n')
@@ -185,7 +194,7 @@ class ModelRegressor(BaseEstimator):
             used_y_batch=self.y_train_batch 
 
         elif usage=="train_eval":
-            # print(self.x_train_batch ,self.x_train)
+
             used_x_batch=self.x_train
             used_y_batch=self.y_train
             
@@ -195,15 +204,24 @@ class ModelRegressor(BaseEstimator):
 
         # print(len(used_x_batch),usage)
         self.y_pred_batch=pd.concat([self.model(used_x_batch.iloc[[i]]) for i in range(len(used_x_batch))])
+     
         self.simulator_called+=len(self.y_pred_batch)
         # print(self.simulator_called)
         # print(self.x_train_batch)
         # print("ypred batch\n\n",self.y_pred_batch,"\n\n",len(self.y_pred_batch))
         # print(self.y_train_batch,"\n\n",len(self.y_train_batch))
-        
+        # print("y_pres : " , self.y_pred_batch)
+        # print("\n y real :\n" ,used_y_batch)
         self.y_pred_batch_error=(used_y_batch.reset_index()-self.y_pred_batch.reset_index())**2
-        self.y_pred_batch_error=self.y_pred_batch_error.drop(columns=["index"])
         
+        # print(self.y_pred_batch_error)
+
+        # print(self.y_pred_batch.reset_index())
+        # print("ancienne : ", (used_y_batch.reset_index()-self.y_pred_batch.reset_index()))
+       
+        
+        self.y_pred_batch_error=self.y_pred_batch_error.drop(columns=["index"])
+        # print("error : ",self.y_pred_batch_error)
         self.y_pred_batch_error['sum_forces']=self.y_pred_batch_error['forces_0']
         self.y_pred_batch_error['sum_forces']+=self.y_pred_batch_error['forces_1']
         self.y_pred_batch_error['sum_forces']+=self.y_pred_batch_error['forces_2']
@@ -223,10 +241,9 @@ class ModelRegressor(BaseEstimator):
     
         # print("Faulty timestamps",used_x_batch.iloc[error.sort_values(by=['sum_forces'],ascending=False).head(10).index])
    
-
         sum_error_forces=np.mean([self.y_pred_batch_error['forces_%i'%(i)] for i in range(3)],axis=1)
+        # sum_error_forces=np.mean(self.y_pred_batch_error['sum_forces'])
         
-
         # print(sum_error_forces.head())
         # print(sum_error_forces.describe(),'\n')        
         
@@ -234,14 +251,12 @@ class ModelRegressor(BaseEstimator):
         # print('##############################################')
         # print(error.sort_values(by=[""]))
 
-        
         sum_error_torque=np.mean([self.y_pred_batch_error['torque_%i'%(i)] for i in range(3)],axis=1)
-       
+        # sum_error_torque=np.mean(self.y_pred_batch_error['sum_torques'])
         # error_torque=
         cout_forces=1.0
         cout_torque=1.0
-        C=cout_forces*np.sum(sum_error_forces) + cout_torque*np.sum(sum_error_torque)       
-        
+        C=cout_forces*np.sum(sum_error_forces) + cout_torque*np.sum(sum_error_torque)  
         if verbose or usage in ("test_eval","train_eval"):
             print("Epoch "+str(self.current_epoch)+" sample "+str(self.sample_nmbr) + "/" +str(len(self.x_train))+" "+usage+' cost : '+str(C))
 
@@ -318,7 +333,7 @@ class ModelRegressor(BaseEstimator):
                         scaler=self.Dict_variables_to_X(self.start_Dict_variables)
                         scaler=np.array([i if i!=0 else 1.0 for i in scaler ])
                         X0_params=self.Dict_variables_to_X(self.current_Dict_variables)
-                        X0_params/=scaler
+                        # X0_params/=scaler
                         # print(X0)
                         res = minimize(self.cost,method='SLSQP',
                              x0=X0_params,options={'maxiter': 100})
@@ -331,14 +346,14 @@ class ModelRegressor(BaseEstimator):
                         scaler=np.array([i if i!=0 else 1.0 for i in scaler ])
                         # print(scaler)
                         X0_params=self.Dict_variables_to_X(self.current_Dict_variables)
-                        X0_params/=scaler
+                        # X0_params/=scaler
                         
                         
                         G=self.compute_gradient(self.cost,X0_params,eps=1e-8, test=True)
                         
                         
                         new_X=X0_params-self.learning_rate*G
-                        new_X*=scaler
+                        # new_X*=scaler
                         # print("finigrad")
                         self.current_Dict_variables=self.X_to_Dict_Variables(new_X)
                     # print('########################')
