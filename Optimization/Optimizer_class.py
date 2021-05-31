@@ -70,10 +70,22 @@ class Optimizer():
         
         self.data_prepared_train,self.data_prepared_test=self.data_prepared_train.reset_index(),self.data_prepared_test.reset_index()
 
-        self.X_train=self.data_prepared_train[[i for i in self.data_prepared.keys() if not (('forces' in i) or ('torque' in i))]].values
-        self.X_test=self.data_prepared_test[[i for i in self.data_prepared.keys() if not (('forces' in i) or ('torque' in i))]].values
-        self.Y_train=self.data_prepared_train[[i for i in self.data_prepared.keys() if (('forces' in i) or ('torque' in i))]].values
-        self.Y_test=self.data_prepared_test[[i for i in self.data_prepared.keys() if (('forces' in i) or ('torque' in i))]].values
+
+
+        self.X_train=self.data_prepared_train[[i for i in self.data_prepared.keys() if not (('forces' in i) or ('torque' in i))]]
+        self.X_test=self.data_prepared_test[[i for i in self.data_prepared.keys() if not (('forces' in i) or ('torque' in i))]]
+        self.Y_train=self.data_prepared_train[[i for i in self.data_prepared.keys() if (('forces' in i) or ('torque' in i))]]
+        self.Y_test=self.data_prepared_test[[i for i in self.data_prepared.keys() if (('forces' in i) or ('torque' in i))]]
+
+        print([(i,j) for (i,j) in enumerate(self.X_train.keys())],[(i,j) for (i,j) in enumerate(self.Y_train.keys())])
+
+
+
+        self.X_train=self.X_train.values
+        self.X_test=self.X_test.values
+        self.Y_train=self.Y_train.values
+        self.Y_test=self.Y_test.values
+
 
     
         return      
