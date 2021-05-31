@@ -44,7 +44,7 @@ class OptiMonitor_MPL():
                                       'cd0fp',
                                       'coeff_drag_shift',
                                       'coeff_lift_shift',
-                                      'coef_lift_gain']
+                                      'coeff_lift_gain']
         else:
             self.opti_variables_keys=opti_variables_keys()
             
