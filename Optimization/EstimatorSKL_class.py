@@ -45,7 +45,7 @@ class ModelRegressor(BaseEstimator):
                                   'cd0fp',
                                   'coeff_drag_shift',
                                   'coeff_lift_shift',
-                                  'coef_lift_gain']
+                                  'coeff_lift_gain']
         
         
         if Dict_variables!=None:
@@ -91,9 +91,10 @@ class ModelRegressor(BaseEstimator):
         
         X_params=self.Dict_variables_to_X(self.start_Dict_variables)
         new_X_params=X_params*(1+amp_dev*(np.random.random(size=len(X_params))-0.5))
-        self.start_Dict_variables=self.X_to_Dict_Variables(X_params)
+        self.start_Dict_variables=self.X_to_Dict_Variables(new_X_params)
         self.current_Dict_variables=self.X_to_Dict_Variables(new_X_params)
-        self.current_Dict_variables['masse']=2.6
+        self.current_Dict_variables['masse']=2.5
+
         print('\n[Randomization] Old / New current variables: ')
         for i in self.start_Dict_variables.keys():
             print(i+": ",self.start_Dict_variables[i],"/",self.current_Dict_variables[i])
@@ -133,9 +134,15 @@ class ModelRegressor(BaseEstimator):
     def compute_gradient(self,func,X_params,eps=1e-6,gradfunc=None,verbose=True):
         time1=time.time()           
         if gradfunc is None:
-            grad=np.array([(func(X_params+np.array([eps if j==i else 0 for j in range(len(X_params))])) -\
-                           func(X_params-np.array([eps if j==i else 0 for j in range(len(X_params))]))) for i in range(len(X_params))])
-            grad/=(2*eps)
+            grad=[0 for k in range(len(X_params))]
+            for i in range(len(X_params)):
+                f1 = func(X_params+np.array([eps if j==i else 0 for j in range(len(X_params))]))
+                f2 = func(X_params-np.array([eps if j==i else 0 for j in range(len(X_params))]))
+                grad[i]= (f1 - f2)/(2*eps)
+            print(self.y_train_batch)
+            # grad=np.array([(func(X_params+np.array([eps if j==i else 0 for j in range(len(X_params))])) -\
+            #                func(X_params-np.array([eps if j==i else 0 for j in range(len(X_params))]))) for i in range(len(X_params))])
+
             if not np.linalg.norm(grad)==0:
                 grad = grad/np.linalg.norm(grad)
         else:
@@ -149,9 +156,8 @@ class ModelRegressor(BaseEstimator):
                 self.MoteurPhysique.compute_dynamics(joystick_input, t , compute_gradF=True)  
                 Gradien_results.append(np.r_[self.MoteurPhysique.grad_forces,self.MoteurPhysique.grad_torque])
                 
-                
             " grad = -2 *(y_data-y_pred) * gradient "
-            gradbatch=[(-2.0*abs(self.y_train.iloc[[i]].values-self.y_pred_batch.iloc[[i]].values)@Gradien_results[i])\
+            gradbatch=[(-2.0*(self.y_train.iloc[[i]].values-self.y_pred_batch.iloc[[i]].values)@Gradien_results[i])\
                         for i in range(len(self.y_pred_batch))]
             gradbatch=np.array([i.reshape((len(X_params),)) for i in gradbatch])
             grad = np.sum(gradbatch[i] for i in range(len(gradbatch)))/ len(gradbatch)
@@ -187,7 +193,7 @@ class ModelRegressor(BaseEstimator):
         self.MoteurPhysique.Dict_variables=DictVariable_X
         self.current_Dict_variables = self.MoteurPhysique.Dict_variables
         # print(self.x_train_batch.iloc[[0]].head(),'\n\n')
-        
+        print(self.MoteurPhysique.Dict_variables)
         if usage=="training":
             
             used_x_batch=self.x_train_batch 
@@ -204,7 +210,7 @@ class ModelRegressor(BaseEstimator):
 
         # print(len(used_x_batch),usage)
         self.y_pred_batch=pd.concat([self.model(used_x_batch.iloc[[i]]) for i in range(len(used_x_batch))])
-     
+        print('sssssss', used_y_batch)
         self.simulator_called+=len(self.y_pred_batch)
         # print(self.simulator_called)
         # print(self.x_train_batch)

@@ -22,7 +22,7 @@ class Optimizer():
     def __init__(self):
         
 
-        self.log_dir_path="../Logs/2021_05_14_15h54m30s"
+        self.log_dir_path="../Logs/2021_05_31_11h29m30s"
         self.log_path=os.path.join(self.log_dir_path,"log.txt")        
         self.true_params_path=os.path.join(self.log_dir_path,"params.json")
         
@@ -66,7 +66,7 @@ class Optimizer():
         
         "split between X and Y"
 
-        self.data_prepared_train,self.data_prepared_test=train_test_split(self.data_prepared,test_size=0.01, random_state=41)
+        self.data_prepared_train,self.data_prepared_test=train_test_split(self.data_prepared,test_size=0.1, random_state=41)
         
         self.data_prepared_train,self.data_prepared_test=self.data_prepared_train.reset_index(),self.data_prepared_test.reset_index()
 
@@ -97,7 +97,7 @@ class Optimizer():
         # print("X_train",self.X_train)
         # print("X_test",self.X_test)
         
-        self.estimator.generate_random_params(amp_dev=0.1)
+        self.estimator.generate_random_params(amp_dev=0.0)
         
         
         self.estimator.x_train=self.X_train
@@ -109,7 +109,7 @@ class Optimizer():
         # ti=time.time()
         self.estimator.cost(usage="train_eval")
         X0params=self.estimator.Dict_variables_to_X(self.estimator.real_Dict_variables)
-        G=self.estimator.compute_gradient(self.estimator.cost,X0params,eps=1e-8,gradfunc=lambda x: np.ones((6,len(x))), test=True)
+        G=self.estimator.compute_gradient(self.estimator.cost,X0params,eps=1e-8,gradfunc=None)
         # print(G)
         # print("X: ",self.X_test.shape, "Y", self.Y_test.shape)
         # print()

@@ -78,13 +78,13 @@ class MoteurPhysique():
                                "cd1fp" : 2.5, \
                                "coeff_drag_shift": 0.5, \
                                "coeff_lift_shift": 0.5, \
-                               "coef_lift_gain": 0.5,\
+                               "coeff_lift_gain": 0.5,\
                                "Ct": 2.5e-5, \
                                "Cq": 1e-8, \
                                "Ch": 1e-4}
             
-        self.Dict_variables = OrderedDict(sorted(self.Dict_variables.items(), key=lambda t: t[0]))
-
+        # self.Dict_variables = OrderedDict(sorted(self.Dict_variables.items(), key=lambda t: t[0]))
+        print('hello :',self.Dict_variables)
             
         # Dictionnaire des états pour la jacobienne
         self.Theta = ['alpha_stall',
@@ -96,8 +96,7 @@ class MoteurPhysique():
                         'cd0fp',
                         'coeff_drag_shift',
                         'coeff_lift_shift',
-                        'coef_lift_gain']
-
+                        'coeff_lift_gain']
         
             
         # Dictionnaires des états
@@ -211,7 +210,7 @@ class MoteurPhysique():
         cd0fp = self.Dict_variables["cd0fp"]
         k0    = self.Dict_variables["coeff_drag_shift"]
         k1    = self.Dict_variables["coeff_lift_shift"]
-        k2    = self.Dict_variables["coef_lift_gain"]
+        k2    = self.Dict_variables["coeff_lift_gain"]
 
         if compute_gradF==None:
             cd = [0,0,0,0,0]
@@ -273,7 +272,6 @@ class MoteurPhysique():
                                                alpha_s, self.Dict_Commande["delta"][p], \
                                                     delta_s, cl1sa, cd1fp, k0, k1, k2, cd0fp, \
                                                          cd0sa, cd1sa).flatten()
-
                    ##### Transfert des efforts dans le bon repère suivant les parties du drones ####
                     if p == 2:
                         grad_force_wing  = self.Effort_function[9](A_list[p], grad_cd[p].flatten(), grad_cl[p].flatten(), \
@@ -300,10 +298,8 @@ class MoteurPhysique():
                                                                              self.speed.flatten(), v_W, self.omega, cp, R_list[p].flatten())
                         grad_torque_wing = self.Effort_function[10](A_list[p], grad_cd[p].flatten(), grad_cl[p].flatten(),\
                                                                                self.speed.flatten(), v_W, self.omega, cp, R_list[p].flatten())
-                       
                         Grad_Sum_Force_Wing  = Grad_Sum_Force_Wing + grad_force_wing
                         Grad_Sum_Torque_Wing =  Grad_Sum_Torque_Wing + grad_torque_wing
-                     
                 ## Calul du gradient pour les moteurs.
                 grad_Sum_rotor_force, grad_Sum_rotor_torque = self.Effort_function[11](self.omega, self.R.flatten(), self.speed.flatten(), v_W,\
                                                                               self.Dict_variables["Ct"], self.Dict_variables["Cq"], \
@@ -311,11 +307,10 @@ class MoteurPhysique():
                 ### Vérification de la condition de décollage qui permet d'avoir un gradient de force suivant z nul.
                 if self.takeoff==0:
                     for col in range(10):
-                        Grad_Sum_Force_Wing[:,col][2]=0
-                        
+                        Grad_Force[:,col]=np.array((Grad_Force[0,col],Grad_Force[1,col],0))                        
                 self.grad_forces= grad_Sum_rotor_force + Grad_Sum_Force_Wing
-                self.grad_torque =grad_Sum_rotor_torque +  np.reshape(Grad_Sum_Torque_Wing, (len(self.Theta),3)).T
-               
+                self.grad_torque =grad_Sum_rotor_torque +  np.reshape(Grad_Sum_Torque_Wing, (3,len(self.Theta)))
+
                 # ##### Methode compacte, fonctionne correctement mais moins rapide (environ 3 fois plus lente) ########
                 # Grad_Force, self.grad_torque=self.Effort_function[12](A_list, self.omega, self.R.flatten(), self.speed.flatten(),\
                 #                                   v_W, cp_list, grad_cd, grad_cl, \
