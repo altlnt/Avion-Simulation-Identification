@@ -138,9 +138,7 @@ def Dict_variables_to_X(Dict,opti_variables_keys=opti_variables_keys):
     V=[j  for key in np.sort([i for i in opti_variables_keys]) for j in np.array(Dict[key]).flatten()]
     return np.array(V)    
 
-def X_to_Dict_Variables(V,
-                        opti_variables_keys=opti_variables_keys,
-                        start_Dict_variables=start_Dict_variables):
+def X_to_Dict_Variables(V, opti_variables_keys=opti_variables_keys, start_Dict_variables=start_Dict_variables):
     Dict={}
     
     counter=0
@@ -182,7 +180,7 @@ def model(X_params, x_data):
     MoteurPhysique.takeoff=takeoff
     
     MoteurPhysique.Dict_variables=X_to_Dict_Variables(X_params)
-    print( MoteurPhysique.Dict_variables)
+    # print( MoteurPhysique.Dict_variables)
     MoteurPhysique.compute_dynamics(joystick_input,t)
     d=np.r_[MoteurPhysique.forces,MoteurPhysique.torque]
     
@@ -200,21 +198,20 @@ def cost(X_params,x_data,y_data,verbose=False):
 
     used_x_batch=x_data
     used_y_batch=y_data
-    
-    y_pred_batch=np.vstack([model(used_x_batch[i]) for i in range(len(used_x_batch))])
+
+    y_pred_batch=np.vstack([model(X_params, used_x_batch[i]) for i in range(len(used_x_batch))])
 
     
     y_pred_batch_error_sq=(used_y_batch-y_pred_batch)**2
-    
 
     y_pred_batch_error_dict={}
-    y_pred_batch_error_dict['sum_forces']=y_pred_batch_error_sq[0]
-    y_pred_batch_error_dict['sum_forces']+=y_pred_batch_error_sq[1]
-    y_pred_batch_error_dict['sum_forces']+=y_pred_batch_error_sq[2]
+    y_pred_batch_error_dict['sum_forces']=y_pred_batch_error_sq[0][0]
+    y_pred_batch_error_dict['sum_forces']+=y_pred_batch_error_sq[0][1]
+    y_pred_batch_error_dict['sum_forces']+=y_pred_batch_error_sq[0][2]
     
-    y_pred_batch_error_dict['sum_torques']=y_pred_batch_error_sq[3]
-    y_pred_batch_error_dict['sum_torques']+=y_pred_batch_error_sq[4]
-    y_pred_batch_error_dict['sum_torques']+=y_pred_batch_error_sq[5]
+    y_pred_batch_error_dict['sum_torques']=y_pred_batch_error_sq[0][3]
+    y_pred_batch_error_dict['sum_torques']+=y_pred_batch_error_sq[0][4]
+    y_pred_batch_error_dict['sum_torques']+=y_pred_batch_error_sq[0][5]
     
  
     sum_error_forces=y_pred_batch_error_dict['sum_forces']/len(y_pred_batch_error_sq)
@@ -228,16 +225,19 @@ def cost(X_params,x_data,y_data,verbose=False):
     return C
         
 
-def compute_numeric_gradient(func,X_params,eps=1e-6,verbose=False):
+def compute_numeric_gradient(func,X_params, x_data, y_data, eps=1e-6,verbose=False):
         grad=[0 for k in range(len(X_params))]
         for i in range(len(X_params)):
-            f1 = func(X_params+np.array([eps if j==i else 0 for j in range(len(X_params))]))
-            f2 = func(X_params-np.array([eps if j==i else 0 for j in range(len(X_params))]))
-            grad[i]= (f1 - f2)/(2*eps)
+            f1 = func(X_params+np.array([eps if j==i else 0 for j in range(len(X_params))]), x_data, y_data)
+            f2 = func(X_params-np.array([eps if j==i else 0 for j in range(len(X_params))]), x_data, y_data)
+            grad[i]= (f1 - f2)/(2*eps) 
+        grad = [i*len(x_data) for i in grad]
+        if not np.linalg.norm(grad)==0:
+            return grad/np.linalg.norm(grad)
+        else:
+            return grad
 
-        return grad
-
-def compute_symbolic_gradient(X_params,x_data):
+def compute_symbolic_gradient(X_params,x_data, y_data):
 
         MoteurPhysique.Dict_variables=X_to_Dict_Variables(X_params)
         MoteurPhysique.Theta = opti_variables_keys
@@ -262,13 +262,14 @@ def compute_symbolic_gradient(X_params,x_data):
             Gradien_results.append(np.r_[MoteurPhysique.grad_forces,MoteurPhysique.grad_torque])
             
         " grad = -2 *(y_data-y_pred) * gradient "
-        gradbatch=[(-2.0*(y_train[i]-y_pred_batch[i])@Gradien_results[i])\
+        gradbatch=[(-2.0*(y_data[i]-y_pred_batch[i])@Gradien_results[i])\
                     for i in range(len(y_pred_batch))]
         gradbatch=np.array([i.reshape((len(X_params),)) for i in gradbatch])
-        grad = np.sum(gradbatch[i] for i in range(len(gradbatch)))/ len(gradbatch)
-        
-            
-        return grad
+        grad = sum(gradbatch[i] for i in range(len(gradbatch)))/ len(gradbatch) 
+        if not np.linalg.norm(grad)==0:
+            return grad/np.linalg.norm(grad)
+        else:
+            return grad
     
 x_train = X_train
 y_train = Y_train
@@ -289,89 +290,101 @@ for i in nnD.keys():
 for i in MoteurPhysique.Dict_variables.keys() :
     if i not in nnD.keys():
         print("in first not in last:",i)
+X0_params = Dict_variables_to_X(start_Dict_variables)
 
-
-for i in range(n_epochs):
-    "saving"
+for i in range(len(X0_params)):
+    X0_params = Dict_variables_to_X(start_Dict_variables)
+    X0_params[i]=10
+    # print(i, "eme ", "cost : "  ,cost(X0_params,x_train,y_train))
     
-    if spath is not None:
-        with open(os.path.join(spath,"%i.json"%(i)),'w') as f:
-            sdict={}
-            for i in opti_variables_keys:
-                sdict[i]=current_Dict_variables[i]
+    G = compute_symbolic_gradient(X0_params,x_train, y_train)
+    G2 = compute_numeric_gradient(cost,X0_params, x_train, y_train,eps=1e-10,verbose=False)
+    # print("gradient symbolique vs gradient ")
+    # for i, j  in enumerate(G):
+    #     print(j, " : ", G2[i])
+    print('produit scalaire :', G@G2)
+
+# for i in range(n_epochs):
+#     "saving"
+    
+#     if spath is not None:
+#         with open(os.path.join(spath,"%i.json"%(i)),'w') as f:
+#             sdict={}
+#             for i in opti_variables_keys:
+#                 sdict[i]=current_Dict_variables[i]
                 
-            sdict['train_score']=current_train_score
-            sdict['test_score']=current_test_score
+#             sdict['train_score']=current_train_score
+#             sdict['test_score']=current_test_score
             
-            for i in sdict.keys():
-                if type(sdict[i])==list:
-                    sdict[i]=np.array(sdict[i]) 
+#             for i in sdict.keys():
+#                 if type(sdict[i])==list:
+#                     sdict[i]=np.array(sdict[i]) 
                     
-                if type(sdict[i])==np.ndarray:
-                    sdict[i]=sdict[i].tolist() 
+#                 if type(sdict[i])==np.ndarray:
+#                     sdict[i]=sdict[i].tolist() 
                     
 
-            json.dump(sdict,f)
+#             json.dump(sdict,f)
            
 
-    "opti loop"
-    x_train_batch=[]
-    y_train_batch=[]           
+#     "opti loop"
+#     x_train_batch=[]
+#     y_train_batch=[]           
 
-    sample_nmbr=0
-    current_epoch+=1
+#     sample_nmbr=0
+#     current_epoch+=1
 
-    while sample_nmbr<(len(x_train)-1):     
+#     while sample_nmbr<(len(x_train)-1):     
         
-        x_train_batch.append(x_train[sample_nmbr])
-        y_train_batch.append(y_train[sample_nmbr])
-        sample_nmbr+=1
+#         x_train_batch.append(x_train[sample_nmbr])
+#         y_train_batch.append(y_train[sample_nmbr])
+#         sample_nmbr+=1
 
-        if len(x_train_batch)==train_batch_size or (sample_nmbr==len(x_train)-1):
+#         if len(x_train_batch)==train_batch_size or (sample_nmbr==len(x_train)-1):
             
-            "batch is full beginning opti"
+#             "batch is full beginning opti"
             
-            x_train_batch=np.vstack(x_train_batch)
-            y_train_batch=np.vstack(y_train_batch)                        
-            previous_Dict_variables=current_Dict_variables
+#             x_train_batch=np.vstack(x_train_batch)
+#             y_train_batch=np.vstack(y_train_batch)                        
+#             previous_Dict_variables=current_Dict_variables
 
-            if fitting_strategy=="scipy":
-                scaler=Dict_variables_to_X(start_Dict_variables)
-                scaler=np.array([i if i!=0 else 1.0 for i in scaler ])
-                X0_params=Dict_variables_to_X(current_Dict_variables)
-
-                
-                res = minimize(cost,method='SLSQP',
-                     x0=X0_params,options={'maxiter': 100})
-
-                current_Dict_variables=X_to_Dict_Variables(res['x']*scaler)
-                
-            if fitting_strategy=="custom_gradient":
-                
-                scaler=Dict_variables_to_X(start_Dict_variables)
-                scaler=np.array([i if i!=0 else 1.0 for i in scaler ])
-
-                X0_params=Dict_variables_to_X(current_Dict_variables)
+#             if fitting_strategy=="scipy":
+#                 scaler=Dict_variables_to_X(start_Dict_variables)
+#                 scaler=np.array([i if i!=0 else 1.0 for i in scaler ])
+#                 X0_params=Dict_variables_to_X(current_Dict_variables)
 
                 
-                G=compute_symbolic_gradient(X0_params,
-                                            x_train_batch)
+#                 res = minimize(cost,method='SLSQP',
+#                      x0=X0_params,options={'maxiter': 100})
 
-                new_X=X0_params-learning_rate*G
-                current_Dict_variables=X_to_Dict_Variables(new_X)
+#                 current_Dict_variables=X_to_Dict_Variables(res['x']*scaler)
+                
+#             if fitting_strategy=="custom_gradient":
+                
+#                 scaler=Dict_variables_to_X(start_Dict_variables)
+#                 scaler=np.array([i if i!=0 else 1.0 for i in scaler ])
+
+#                 X0_params=Dict_variables_to_X(current_Dict_variables)
+
+                
+#                 G=compute_symbolic_gradient(X0_params,
+#                                             x_train_batch)
+
+#                 new_X=X0_params-learning_rate*G
+#                 current_Dict_variables=X_to_Dict_Variables(new_X)
 
             
-            for i in opti_variables_keys:
+#             for i in opti_variables_keys:
                 
-                 print('########################\nreal/start/prev/current '+i+' :',
-                      real_Dict_variables[i],
-                      start_Dict_variables[i],
-                      previous_Dict_variables[i],
-                      current_Dict_variables[i])
+#                  print('########################\nreal/start/prev/current '+i+' :',
+#                       real_Dict_variables[i],
+#                       start_Dict_variables[i],
+#                       previous_Dict_variables[i],
+#                       current_Dict_variables[i])
                 
-            print('########################')
-            x_train_batch=[]
-            y_train_batch=[]   
+#             print('########################')
+#             x_train_batch=[]
+#             y_train_batch=[]   
             # input("Continue ?")
             # current_train_score=cost(usage="train_eval",verbose=True)
             # monitor.current_params=current_Dict_variables
