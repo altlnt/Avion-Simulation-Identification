@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+Created on Thu May 20 10:40:22 2021
+
+@author: mehdi
+"""
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
 Created on Fri May  7 15:05:05 2021
 
 @author: l3x
@@ -15,6 +23,7 @@ import pandas as pd
 import json
 import time
 import numpy as np
+from random import random
 
 class Optimizer():
     
@@ -57,40 +66,27 @@ class Optimizer():
         new_temp_df=pd.DataFrame()
         
         for i in temp_df.keys():
-            if ('forces' in i) or ('torque' in i) or ("joystick" in i) or (i in ('t')):
+            if ('forces' in i) or ('torque' in i) or ("joystick" in i) or ('t' in i):
                 new_temp_df[i]=temp_df[i][1:].values
             else:
                 new_temp_df[i]=temp_df[i][:-1].values
-            
+                
         self.data_prepared=new_temp_df
-        
         "split between X and Y"
 
-        self.data_prepared_train,self.data_prepared_test=train_test_split(self.data_prepared,test_size=0.1, random_state=41)
+        self.data_prepared_train,self.data_prepared_test=train_test_split(self.data_prepared,test_size=0.01, random_state=41)
         
         self.data_prepared_train,self.data_prepared_test=self.data_prepared_train.reset_index(),self.data_prepared_test.reset_index()
-
-
 
         self.X_train=self.data_prepared_train[[i for i in self.data_prepared.keys() if not (('forces' in i) or ('torque' in i))]]
         self.X_test=self.data_prepared_test[[i for i in self.data_prepared.keys() if not (('forces' in i) or ('torque' in i))]]
         self.Y_train=self.data_prepared_train[[i for i in self.data_prepared.keys() if (('forces' in i) or ('torque' in i))]]
         self.Y_test=self.data_prepared_test[[i for i in self.data_prepared.keys() if (('forces' in i) or ('torque' in i))]]
 
-        print([(i,j) for (i,j) in enumerate(self.X_train.keys())],[(i,j) for (i,j) in enumerate(self.Y_train.keys())])
-
-
-
-        self.X_train=self.X_train.values
-        self.X_test=self.X_test.values
-        self.Y_train=self.Y_train.values
-        self.Y_test=self.Y_test.values
-
-
     
         return      
 
-    def launch(self):
+    def launch(self):            
         self.prepare_data()
         # print(self.estimator.start_Dict_variables,"\n")
         # print(self.estimator.current_Dict_variables,"\n")
@@ -110,19 +106,32 @@ class Optimizer():
         # print("X_test",self.X_test)
         
         self.estimator.generate_random_params(amp_dev=0.0)
-        
-        
-        self.estimator.x_train=self.X_train
-        self.estimator.y_train=self.Y_train
-        self.estimator.x_test=self.X_test
-        self.estimator.y_test=self.Y_test
+        b =1
+        c = 1
+        self.estimator.x_train=self.X_train[b:b+c]
+        self.estimator.y_train=self.Y_train[b:b+c]
+        self.estimator.x_test=self.X_test[b:b+c]
+        self.estimator.y_test=self.Y_test[b:b+c]
         self.estimator.x_train_batch=self.estimator.x_train
         self.estimator.y_train_batch=self.estimator.y_train
+        print("x train ", self.estimator.x_train)
+        print("y train ", self.estimator.y_train)
+
         # ti=time.time()
         self.estimator.cost(usage="train_eval")
-        X0params=self.estimator.Dict_variables_to_X(self.estimator.real_Dict_variables)
-        G=self.estimator.compute_gradient(self.estimator.cost,X0params,eps=1e-8,gradfunc=None)
-        # print(G)
+        
+        X0params=self.estimator.Dict_variables_to_X(self.estimator.current_Dict_variables)
+        G=self.estimator.compute_gradient(self.estimator.cost,X0params,eps=1e-8,gradfunc=True, verbose=False)
+
+        G2=self.estimator.compute_gradient(self.estimator.cost,X0params,eps=1e-12,verbose=False)
+
+        print("Gradient : ")
+        for i in range(len(G)):
+            print(G[i], ',', G2[i] )
+
+        print('poduit scalaire =' , (G.T@G2))
+        # print(G-G2)
+
         # print("X: ",self.X_test.shape, "Y", self.Y_test.shape)
         # print()
         # print(time.time()-ti)
@@ -136,7 +145,6 @@ class Optimizer():
         
         # self.estimator.fit(self.X_train,self.Y_train,self.X_test,self.Y_test)
         # print(time.time()-ti)
-
         
         
 O=Optimizer()

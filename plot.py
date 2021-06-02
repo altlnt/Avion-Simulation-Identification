@@ -5,14 +5,18 @@ Created on Tue Apr 20 23:44:24 2021
 
 @author: alex
 """
+
+import sys
+sys.path.append('../')
+
 import pandas as pd
 from pylab import *
 import os
 import matplotlib.pyplot as plt
-%matplotlib qt
+# %matplotlib qt
 datadir=sort(os.listdir(os.path.join(os.getcwd(),"Logs")))[-1]
 
-data=pd.read_csv(os.path.join(os.getcwd(),"Logs",datadir,"log.txt"))
+data=pd.read_csv(os.path.join(os.getcwd(),"Logs",datadir,'log.txt'))
 
 f,axes=plt.subplots(nrows=5,ncols=6)
 
@@ -42,6 +46,6 @@ for i,key in enumerate([i for i in data.keys() if i!="t"]):
     if "alpha" in key:
         cu_ax.set_ylim(-2,2)
     if "joystick" in key:
-        cu_ax.set_ylim(-250,250)
+        cu_ax.set_ylim(min(data[key]), max(data[key]))
 
         
