@@ -167,12 +167,10 @@ class MoteurPhysique():
             # 0 : VelinLDPlane_function
             # 1 : dragDirection_function
             # 2 : liftDirection_function
-            # 3 : compute_alpha_sigma()
-            # 4 : Coeff_function qui calcul les coeffs aéro pour toutes les surfaces tel que [Cl, Cd]
-            # 5 : Effort_Aero qui renvoi un liste tel que [Force, Couple]
-            # 6 : Gradient de sigma (pas utilisé dans cette version)
-            # 7-8 : Gradient de Cl, et de Cd respectivement, renvoi un vecteur 
-            # 9 : Sommes des gradients des efforts pour chaques ailes, et moteurs
+            # 3 : compute_alpha
+            # 4 : Effort_Aero_complete = [Force, Couple] : renvoi un liste des efforts en fonction d'une liste de alpha ainsi que de la vitesse et orientation du drone, dans le repère Body
+    		# 5 : Grad_Effort_Aero_complete_function = renvoi le gradient des forces, calculé à partir de [6], dans le repère body
+           
             
         T_init=self.T_init    # Temps pendant laquelle les forces ne s'appliquent pas sur le drone
         self.joystick_input_log= joystick_input
