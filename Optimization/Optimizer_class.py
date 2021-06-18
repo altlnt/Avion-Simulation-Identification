@@ -22,7 +22,7 @@ class Optimizer():
     def __init__(self):
         
 
-        self.log_dir_path="../Logs/2021_05_31_11h29m30s"
+        self.log_dir_path="../Logs/2021_06_02_16h45m15s"
         self.log_path=os.path.join(self.log_dir_path,"log.txt")        
         self.true_params_path=os.path.join(self.log_dir_path,"params.json")
         
@@ -109,7 +109,7 @@ class Optimizer():
         # print("X_train",self.X_train)
         # print("X_test",self.X_test)
         
-        self.estimator.generate_random_params(amp_dev=0.0)
+        self.estimator.generate_random_params(amp_dev=0.1)
         
         
         self.estimator.x_train=self.X_train
@@ -120,8 +120,8 @@ class Optimizer():
         self.estimator.y_train_batch=self.estimator.y_train
         # ti=time.time()
         self.estimator.cost(usage="train_eval")
-        X0params=self.estimator.Dict_variables_to_X(self.estimator.real_Dict_variables)
-        G=self.estimator.compute_gradient(self.estimator.cost,X0params,eps=1e-8,gradfunc=None)
+        # X0params=self.estimator.Dict_variables_to_X(self.estimator.real_Dict_variables)
+        # G=self.estimator.compute_gradient(self.estimator.cost,X0params,eps=1e-8,gradfunc=None)
         # print(G)
         # print("X: ",self.X_test.shape, "Y", self.Y_test.shape)
         # print()
@@ -133,9 +133,9 @@ class Optimizer():
 
         # self.estimator.compute_gradient(self.estimator.cost,X0_params,eps=1e-7)
 
-        
-        # self.estimator.fit(self.X_train,self.Y_train,self.X_test,self.Y_test)
-        # print(time.time()-ti)
+        t1 = time.time()
+        self.estimator.fit(self.X_train,self.Y_train,self.X_test,self.Y_test)
+        print(time.time()-t1)
 
         
         

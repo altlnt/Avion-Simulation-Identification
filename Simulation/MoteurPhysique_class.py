@@ -48,7 +48,6 @@ class MoteurPhysique():
         self.omega=np.array([0,0,0])
         self.q=np.array([1.0,0.0,0.0,0.0])
         self.R=tf3d.quaternions.quat2mat(self.q) 
-        self.moy_rotor_speed = 200
         self.takeoff =0
         
         self.Effort_function = dill.load(open('../Simulation/function_moteur_physique','rb'))
@@ -58,7 +57,7 @@ class MoteurPhysique():
         ####### Dictionnaire des paramètres du monde 
         self.Dict_world     = {"wind" : np.array([0,0,0]),                        \
                                "g"    : np.array([0,0,9.81]),                    \
-                               }
+                               "mode" : [0,0,1,1]}   # Permet de bloquer les commandes (0 commande bloquer, 1 commande active)
         ####### Dictionnaire des paramètres pour l'optimisation
         self.Dict_variables = {"masse": 2.5 , \
                                "inertie": np.diag([0.2,0.15,0.15]),\
@@ -79,9 +78,13 @@ class MoteurPhysique():
                                "coeff_drag_shift": 0.5, \
                                "coeff_lift_shift": 0.5, \
                                "coeff_lift_gain": 0.5,\
-                               "Ct": 2.5e-5, \
+                               "Ct": 1e-4, \
                                "Cq": 1e-8, \
-                               "Ch": 1e-4}
+                               "Ch": 1e-4,\
+                               "rotor_moy_speed":200}
+            
+        self.moy_rotor_speed = self.Dict_variables["rotor_moy_speed"]
+
             
         # self.Dict_variables = OrderedDict(sorted(self.Dict_variables.items(), key=lambda t: t[0]))
             
@@ -125,7 +128,6 @@ class MoteurPhysique():
                 keys=dic.keys() 
                 for key in keys:
                     self.SaveDict[key]=np.array(dic[key]).tolist()
-            self.SaveDict['mean_rotor_speed']=self.moy_rotor_speed
             with open(os.path.join(self.save_path_base,'params.json'), 'w') as fp:
                 json.dump(self.SaveDict, fp)
         
@@ -174,16 +176,19 @@ class MoteurPhysique():
             
         T_init=self.T_init    # Temps pendant laquelle les forces ne s'appliquent pas sur le drone
         self.joystick_input_log= joystick_input
-
+        
         for q,i in enumerate(joystick_input):      # Ajout d'une zone morte dans les commandes 
             if abs(i)<40 :
-                self.joystick_input[q] = 0
-            elif q==0 or q==2 :
                 self.joystick_input[q] = 0
             elif q==3 : 
                 self.joystick_input[q] = joystick_input[q]/250 *  self.moy_rotor_speed
             else:
                 self.joystick_input[q] = joystick_input[q] * 15 *np.pi/180 / 250 
+        
+        for j,p in enumerate(self.Dict_world["mode"]):
+            if p==0:
+                self.joystick_input[j] = 0
+           
         # Mise à niveau des commandes pour etre entre -15 et 15 degrés 
          # (l'input est entre -250 et 250 initialement)
         self.Dict_Commande["delta"] = np.array([self.joystick_input[0], -self.joystick_input[0], \
