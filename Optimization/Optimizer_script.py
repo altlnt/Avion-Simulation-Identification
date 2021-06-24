@@ -46,7 +46,8 @@ if not dill.load(open('../Simulation/function_moteur_physique','rb'))[-1]==None:
     opti_variables_keys=dill.load(open('../Simulation/function_moteur_physique','rb'))[-1]
 else:
     print("Attention aux chargement des params pour l'identif")
-    opti_variables_keys=['cd1sa',
+    opti_variables_keys=['alpha0',
+                         'cd1sa',
                           'cl1sa',
                           'cd0sa',
                           'coeff_drag_shift',
@@ -216,7 +217,7 @@ def cost(X_params,x_data,y_data,verbose=False, RMS=None):
     # if verbose==True:
     #     print("Epoch "+str(current_epoch)+" sample "+str(sample_nmbr) + "/" +str(len(x_data))+" "+usage+' cost : '+str(C))
     if not RMS==None:
-        return C, np.sum(sum_error_forces), np.sum(sum_error_torque)
+        return C, np.sum(sum_error_forces) , np.sum(sum_error_torque)
     else:
         return C
         
@@ -271,18 +272,19 @@ def compute_symbolic_gradient(X_params,x_data, y_data):
 ### PID gradient
 gradient_kp=1
 gradient_kd=10*0
-gradient_ki=0.01
+gradient_ki=0.01*0
 gradient_integ_lim=-1.0
 gradient_func=None
 G_sum =0
 G =10
 ####### Params pour l'opti ######
 n_params_dropout = 2
-train_batch_size=5
+train_batch_size=20
 fitting_strategy="custom_gradient"
-n_epochs=1
-learning_rate=1e-3
-name=("Opti avec Learning rate = "+str(learning_rate)+" Avec PID = "+str(gradient_kp)+"/" +str(gradient_ki) + "/" + str(gradient_kd)+" avec des batch de taille :"+ str(train_batch_size))
+n_epochs=30
+learning_rate=0.5e-3
+list_learning_rate=[learning_rate, learning_rate*50000, learning_rate*80, learning_rate*200, learning_rate*100, learning_rate*100]
+name=("Opti avec Learning rate initial = "+str(format(learning_rate, '.1E'))+" Avec PID = "+str(gradient_kp)+"/" +str(gradient_ki) + "/" + str(gradient_kd)+" avec des batch de taille :"+ str(train_batch_size))
 
 ########## Initialisation des paramètres #########
 x_train = X_train
@@ -297,6 +299,9 @@ start_Dict_variables = X_to_Dict_Variables(generate_random_params\
 current_Dict_variables =start_Dict_variables
 # current_Dict_variables['cd0sa']=true_params['cd0sa']
 # current_Dict_variables['cl1sa']=true_params['cl1sa']
+# current_Dict_variables['cd1sa']=true_params['cd1sa']
+# current_Dict_variables['coeff_lift_shift']=true_params['coeff_lift_shift']
+
 best_Dict_variables = current_Dict_variables
 
 ######### Création du monitor ##########
@@ -308,6 +313,8 @@ monitor.current_params=start_Dict_variables
 monitor.y_sim = [model(current_Dict_variables, X_test_sim[i]) for i in range(len(X_test_sim))]
 current_test_score, monitor.RMS_forces, monitor.RMS_torque =cost(current_Dict_variables, x_test, y_test, verbose=True, RMS=True)
 monitor.y_real= Y_test_sim        # Valeur réel des efforts 
+b=0
+monitor.current_params_to_opti =list(start_Dict_variables.keys())[b]
 # monitor.update(epoch=True)
 
 ############################
@@ -323,7 +330,9 @@ monitor.y_real= Y_test_sim        # Valeur réel des efforts
 #         print("in first not in last:",i)
 
 t2 = time.time()
+z=0 # Compteur pour l'affichage des simulations en fonctions des epochs 
 ############ Début de l'optimization ##########
+
 for i in range(n_epochs):
     "saving"
     
@@ -354,7 +363,15 @@ for i in range(n_epochs):
     monitor.t = current_epoch
     monitor.y_eval, monitor.y_train = current_test_score,current_train_score
     monitor.update(epoch=True)
-    
+    n_update_sim=(n_epochs)/3
+    if monitor.t+1%n_update_sim==0:
+        monitor.update_sim_monitor(n_epoch=z)
+        z+=1
+    elif monitor.t==0:
+        monitor.update_sim_monitor(n_epoch=z)
+        z+=1
+    elif monitor.t+1==n_epochs:
+        monitor.update_sim_monitor(n_epoch=z)
     sample_nmbr=0
     current_epoch+=1
 
@@ -386,8 +403,8 @@ for i in range(n_epochs):
                 
             if fitting_strategy=="custom_gradient":
                 
-                scaler=Dict_variables_to_X(start_Dict_variables)
-                scaler=np.array([i if i!=0 else 1.0 for i in scaler ])
+                # scaler=Dict_variables_to_X(start_Dict_variables)
+                # scaler=np.array([i if i!=0 else 1.0 for i in scaler ])
 
                 X0_params=Dict_variables_to_X(current_Dict_variables)
                 G_pred = G
@@ -397,11 +414,14 @@ for i in range(n_epochs):
                 G_dot= (G_pred-G)
                 G_sum+=G
                 G_total = (gradient_kp * G + gradient_ki * G_sum + gradient_kd * G_dot)
-                if not n_params_dropout==0:
-                    for lzar in range(n_params_dropout):
-                        kir=np.random.randint(0,len(X0_params))
-                        G_total[kir]= 0
-
+                # if not n_params_dropout==0:
+                #     for lzar in range(n_params_dropout):
+                #         kir=np.random.randint(0,len(X0_params))
+                #         G_total[kir]= 0
+              
+                for o,val in enumerate(G_total):
+                    if not o==b:
+                        G_total[o]=0
                 new_X=X0_params-learning_rate*G_total
                 current_Dict_variables=X_to_Dict_Variables(new_X)
                 
@@ -419,9 +439,17 @@ for i in range(n_epochs):
                 if new_test_score<current_test_score:
                     best_Dict_variables=current_Dict_variables
                 current_test_score=new_test_score
-
+            
             monitor.update()
-                
+            if monitor.list_params_finish:
+                for keys in monitor.list_params_finish.keys():
+                    if keys==monitor.current_params_to_opti:
+                        b+=1
+                        if b>len(opti_variables_keys)-1:
+                            b=0
+                            monitor.list_params_finish={}
+                        monitor.current_params_to_opti=opti_variables_keys[b]
+                        learning_rate=list_learning_rate[b]
     monitor.y_sim = [model(current_Dict_variables, X_test_sim[i]) for i in range(len(X_test_sim))]
     monitor.y_real=Y_test_sim
 

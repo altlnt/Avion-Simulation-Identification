@@ -21,7 +21,7 @@ class OptiMonitor_MPL():
         
         self.fig = plt.figure(self.name)
         self.fig.patch.set_facecolor('lightgrey') 
-        self.ax01= self.fig.add_subplot(3,2,1)
+        self.ax01= self.fig.add_subplot(3,2,1)      
         self.ax02= self.fig.add_subplot(3,2,3)
         self.ax03= self.fig.add_subplot(3,2,5)
 
@@ -36,6 +36,11 @@ class OptiMonitor_MPL():
         self.ax8= self.fig.add_subplot(4,4,16)
 
         self.ax_dic = [self.ax01, self.ax02, self.ax03,self.ax1,self.ax2,self.ax3, self.ax5,self.ax7, self.ax4, self.ax6,self.ax8]
+        
+        self.fig_sim = plt.figure(self.name+" evolution du fit des simulation en fonction de l'epoch") 
+        self.fig_sim.patch.set_facecolor('lightgrey') 
+
+
         self.color_list = ['b','g','r','c','m','y','k', '0.70', '0.30', (0.2,0.9,0.1)]
         if opti_variables_keys==None:
             self.opti_variables_keys=['alpha_stall',
@@ -100,6 +105,51 @@ class OptiMonitor_MPL():
         self.error_dic = {}
         self.sample_percent=[]
         self.sample=0
+        self.current_params_to_opti=""
+        self.list_params_finish={}
+        
+        self.fig.suptitle(self.title + " : Evolution du fitting en fonction des epochs")
+
+        
+    def legend(self, epoch=None, dic_fig_sim=None):
+        if epoch==False:
+            for i in [self.ax1, self.ax2]:
+                i.set_xlabel('data sample (%)')
+                i.set_ylabel('error (%)')
+                i.legend()  
+                
+        elif dic_fig_sim:
+            name_graph =['Force(N)', 'Torque(N/m)']
+            for p, i in enumerate(dic_fig_sim):
+                i.grid()
+                i.set_xlabel('time')
+                if (p+1)%2==0:
+                    i.set_ylabel(name_graph[1])
+                else:
+                    i.set_ylabel(name_graph[0])
+                i.legend()   
+        else: 
+            name_graph =['Force(N)', 'Torque(N/m)']
+            for p, i in enumerate(self.ax_dic[5:]):
+                i.set_xlabel('time')
+                if p>2:
+                    i.set_ylabel(name_graph[1])
+                else:
+                    i.set_ylabel(name_graph[0])
+                i.legend()   
+    
+            for p, i in enumerate([self.ax02, self.ax03]):
+                i.set_xlabel('epoch')
+                i.set_ylabel("RMS error "+name_graph[p])
+                i.legend()  
+                
+            self.ax01.set_xlabel('epoch')
+            self.ax01.set_ylabel('Cost')
+            self.ax01.legend()
+            
+            
+        return 
+    
     def update(self, epoch=None):
         current_params = self.current_params
 
@@ -111,7 +161,10 @@ class OptiMonitor_MPL():
             for p, keys in enumerate(self.opti_variables_keys):
                 error = abs(current_params[keys] - self.params_real[keys]) / self.params_real[keys] * 100
                 if keys in self.error_dic:
-                    self.error_dic.update({keys : self.error_dic[keys] + [error]})
+                    if keys in self.list_params_finish:
+                        self.error_dic.update({keys :self.error_dic[keys]+ [self.list_params_finish[keys]]})
+                    else:
+                        self.error_dic.update({keys : self.error_dic[keys] + [error]})
                 else :
                     self.error_dic.update({keys:[error]})
                 if int(p<len(self.opti_variables_keys)/2):
@@ -120,11 +173,19 @@ class OptiMonitor_MPL():
                 else:
                     self.ax_dic[4].plot(self.sample_percent, self.error_dic[keys], label=keys+" = "+str(np.round(current_params[keys],4)), color=self.color_list[p])
                     self.ax_dic[4].set_ylim(0,100)
-            for ax in [self.ax1, self.ax2]:
-                ax.legend()
-                ax.relim()
+            self.legend(epoch=False)
             
-        else: 
+        else:
+            if self.error_dic:
+                keys = self.current_params_to_opti
+                begin = int((self.t-1)*len(self.error_dic[keys])/self.t)
+                first_mean = np.mean(self.error_dic[keys][begin: begin+ 2*int(len(self.error_dic[keys][begin:-1])/3)])
+                second_mean = np.mean(self.error_dic[keys][begin+2*int(len(self.error_dic[keys][begin:-1])/3):-1])
+                if abs(first_mean-second_mean)<0.1:
+                    self.list_params_finish[keys]=(first_mean+second_mean)/2
+                    print("end opti for :" + keys + " with mean = " +str( self.list_params_finish[keys]))
+                else:
+                    print("mean is not reached")
             
             for ax in [self.ax01,self.ax02,self.ax03,self.ax3, self.ax4, self.ax5, self.ax6, self.ax7,self.ax8]:
                 ax.clear()
@@ -160,14 +221,32 @@ class OptiMonitor_MPL():
                 self.ax_dic[i+8].plot(self.x_data, [self.y_sim[j][0][3+i] for j in range(len(self.y_sim))], label="Torque_sim["+str(i)+"]", color=self.L_sim[i])
                 self.ax_dic[i+8].plot(self.x_data, self.y_real[:,3+i], label="Torque_real["+str(i)+"]",color=self.L_real[i],linestyle='--' )
                 
-            for ax in [self.ax01,self.ax02,self.ax03,self.ax3, self.ax4, self.ax5, self.ax6, self.ax7,self.ax8]:
-                ax.legend()
-                ax.relim()
+            self.legend(epoch=True)
+
                 
         self.fig.suptitle(self.title)
         plt.pause(0.001)
 
         return
+    
+    def update_sim_monitor(self, n_epoch=None):
+        self.ax_sim1 = self.fig_sim.add_subplot(4,6,(6*n_epoch)+1) 
+        self.ax_sim2 = self.fig_sim.add_subplot(4,6,(6*n_epoch)+3)  
+        self.ax_sim3 = self.fig_sim.add_subplot(4,6,(6*n_epoch)+5) 
+        
+        self.ax_sim4 = self.fig_sim.add_subplot(4,6,(6*n_epoch)+2) 
+        self.ax_sim5 = self.fig_sim.add_subplot(4,6,(6*n_epoch)+4)  
+        self.ax_sim6 = self.fig_sim.add_subplot(4,6,(6*n_epoch)+6)
+        dic_fig_sim=[self.ax_sim1,self.ax_sim4,self.ax_sim2,self.ax_sim5,self.ax_sim3,self.ax_sim6]
+        for i in range(3):
+           dic_fig_sim[2*i].plot(self.x_data, [self.y_sim[j][0][i] for j in range(len(self.y_sim))], label="Force_sim["+str(i)+"]",color=self.L_sim[i])
+           dic_fig_sim[2*i].plot(self.x_data, self.y_real[:,i], label="Force_real["+str(i)+"]",color=self.L_real[i],linestyle='--' )
+           dic_fig_sim[2*i+1].plot(self.x_data, [self.y_sim[j][0][3+i] for j in range(len(self.y_sim))], label="Torque_sim["+str(i)+"]", color=self.L_sim[i])
+           dic_fig_sim[2*i+1].plot(self.x_data, self.y_real[:,3+i], label="Torque_real["+str(i)+"]",color=self.L_real[i],linestyle='--' )
+        self.legend(dic_fig_sim=dic_fig_sim)
+        plt.pause(0.001)
+        return
+
     
     def launch(self):
         plt.ion()

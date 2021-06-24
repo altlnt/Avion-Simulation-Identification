@@ -40,13 +40,13 @@ class MoteurPhysique():
         self.forces,self.torque=np.zeros(3),np.zeros(3)
         self.grad_forces, self.grad_torque = np.zeros((3,10)), np.zeros((3,10))
         self.acc=np.zeros(3)
-        self.speed=np.array([0.01,0,0])
+        self.speed=np.array([24,0,0])
         self.pos=np.zeros(3)
         
         #   Rotation
         self.omegadot=np.zeros(3)
         self.omega=np.array([0,0,0])
-        self.q=np.array([1.0,0.0,0.0,0.0])
+        self.q=np.array(tf3d.quaternions.axangle2quat([0, 1, 0], 0.07))
         self.R=tf3d.quaternions.quat2mat(self.q) 
         self.takeoff =0
         
@@ -57,19 +57,19 @@ class MoteurPhysique():
         ####### Dictionnaire des paramètres du monde 
         self.Dict_world     = {"wind" : np.array([0,0,0]),                        \
                                "g"    : np.array([0,0,9.81]),                    \
-                               "mode" : [0,0,1,1]}   # Permet de bloquer les commandes (0 commande bloquer, 1 commande active)
+                               "mode" : [1,1,1,1]}   # Permet de bloquer les commandes (0 commande bloquer, 1 commande active)
         ####### Dictionnaire des paramètres pour l'optimisation
-        self.Dict_variables = {"masse": 2.5 , \
-                               "inertie": np.diag([0.2,0.15,0.15]),\
-                               "aire" : [0.03* 1.292 * 0.5, 0.03* 1.292 * 0.5, 0.01* 1.292 * 0.5, 0.01* 1.292 * 0.5, 0.04* 1.292 * 0.5],\
-                               "cp_list": [np.array([0,0.45,0],       dtype=np.float).flatten(), \
-                                           np.array([0,-0.45,0],      dtype=np.float).flatten(), \
-                                           np.array([-0.5,0.15,0],    dtype=np.float).flatten(),\
-                                           np.array([-0.5,-0.15,0],   dtype=np.float).flatten(),\
-                                           np.array([0,0,0],          dtype=np.float).flatten()],
-                               "alpha0" : np.array([0.06,0.06,0,0,0.06]),\
+        self.Dict_variables = {"masse": 8.5 , \
+                               "inertie": np.diag([1.38,0.84,2.17]),\
+                               "aire" : [0.62*0.262* 1.292 * 0.5, 0.62*0.262* 1.292 * 0.5, 0.34*0.01* 1.292 * 0.5, 0.34*0.1* 1.292 * 0.5, 1.08*0.31* 1.292 * 0.5],\
+                               "cp_list": [np.array([-0.013,0.475,-0.040],       dtype=np.float).flatten(), \
+                                           np.array([-0.013,-0.475,-0.040],      dtype=np.float).flatten(), \
+                                           np.array([-1.006,0.85,-0.134],    dtype=np.float).flatten(),\
+                                           np.array([-1.006,-0.85,-0.134],   dtype=np.float).flatten(),\
+                                           np.array([0.021,0,-0.064],          dtype=np.float).flatten()],
+                               "alpha0" : np.array([0.07,0.07,0,0,0.07]),\
                                "alpha_stall" : 0.3391428111 ,                     \
-                               "largeur_stall" : 30.0*np.pi/180,                  \
+                               "largeur_stall" : 15.0*np.pi/180,                  \
                                "cd0sa" : 0.045,\
                                "cd0fp" : 0.045,\
                                "cd1sa" : 4.55, \
@@ -78,7 +78,7 @@ class MoteurPhysique():
                                "coeff_drag_shift": 0.5, \
                                "coeff_lift_shift": 0.5, \
                                "coeff_lift_gain": 0.5,\
-                               "Ct": 1e-4, \
+                               "Ct": 2e-4, \
                                "Cq": 1e-8, \
                                "Ch": 1e-4,\
                                "rotor_moy_speed":200}
@@ -256,20 +256,14 @@ class MoteurPhysique():
                     alpha_list[p] = self.Effort_function[3](dragDirection, liftDirection, frontward_Body, VelinLDPlane)
                     
 ########## Calcul compact à partir d'une liste des angles d'attaques, le calcul des coeffs aéro est compris dedans
-                self.grad_forces = self.Effort_function[5](A_list, self.omega, self.R.flatten(), self.speed.flatten(),\
+                self.grad_forces, self.grad_torque = self.Effort_function[5](A_list, self.omega, self.R.flatten(), self.speed.flatten(),\
                                                   v_W, cp_list,alpha_list, alpha_0_list,\
                                                    alpha_s, self.Dict_Commande["delta"], \
                                                    delta_s, cl1sa, cd1fp, k0, k1, k2, cd0fp, \
                                                    cd0sa, cd1sa, \
                                                   self.Dict_variables["Ct"], self.Dict_variables["Cq"], \
-                                                  self.Dict_variables["Ch"],self.Dict_Commande["rotor_speed"])[0]
-                self.grad_torque = self.Effort_function[5](A_list, self.omega, self.R.flatten(), self.speed.flatten(),\
-                                                  v_W, cp_list,alpha_list, alpha_0_list,\
-                                                   alpha_s, self.Dict_Commande["delta"], \
-                                                   delta_s, cl1sa, cd1fp, k0, k1, k2, cd0fp, \
-                                                   cd0sa, cd1sa, \
-                                                  self.Dict_variables["Ct"], self.Dict_variables["Cq"], \
-                                                  self.Dict_variables["Ch"],self.Dict_Commande["rotor_speed"])[1]
+                                                  self.Dict_variables["Ch"],self.Dict_Commande["rotor_speed"])
+              
                 for col in range((np.size(self.Theta))):
                     self.grad_forces[:,col]= self.R @ np.array((self.grad_forces[0,col],self.grad_forces[1,col],self.grad_forces[2,col]))
                     self.grad_torque[:,col]= self.R @ np.array((self.grad_torque[0,col],self.grad_torque[1,col],self.grad_torque[2,col]))
