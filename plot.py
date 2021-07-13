@@ -14,11 +14,11 @@ from pylab import *
 import os
 import matplotlib.pyplot as plt
 # %matplotlib qt
-datadir=sort(os.listdir(os.path.join(os.getcwd(),"Logs")))[-1]
+datadir=sort(os.listdir(os.path.join(os.getcwd(),"Logs")))[-2]
 
 data=pd.read_csv(os.path.join(os.getcwd(),"Logs",datadir,'log.txt'))
 
-f,axes=plt.subplots(nrows=5,ncols=6)
+f,axes=plt.subplots(nrows=6,ncols=6)
 
 for i,key in enumerate([i for i in data.keys() if i!="t"]):
     
@@ -32,7 +32,7 @@ for i,key in enumerate([i for i in data.keys() if i!="t"]):
     if "speed" in key:
         cu_ax.set_ylim(-50,50)
     if "pos" in key:
-        cu_ax.set_ylim(-150,150)
+        cu_ax.set_ylim(-250,250)
     if "omegadot" in key:
         cu_ax.set_ylim(-100,100)
     if "omega" in key:
@@ -40,7 +40,7 @@ for i,key in enumerate([i for i in data.keys() if i!="t"]):
     if "q" in key:
         cu_ax.set_ylim(-1,1)
     if "forces" in key:
-        cu_ax.set_ylim(-100,100)
+        cu_ax.set_ylim(-200,200)
     if "torque" in key:
         cu_ax.set_ylim(-100,100)
     if "alpha" in key:

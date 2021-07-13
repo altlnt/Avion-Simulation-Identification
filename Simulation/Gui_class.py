@@ -176,7 +176,7 @@ class Viewer:
     
     
         ################### récupérer la position du modèle et la feeder ici
-        self.new_pos=np.array([self.target_pos[0],self.target_pos[1],-self.target_pos[2]]) *0.3
+        self.new_pos=np.array([self.target_pos[0],self.target_pos[1],-self.target_pos[2]]) 
         ###################        
         self.pos.append(self.new_pos)
 

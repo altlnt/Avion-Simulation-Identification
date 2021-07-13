@@ -40,13 +40,13 @@ class MoteurPhysique():
         self.forces,self.torque=np.zeros(3),np.zeros(3)
         self.grad_forces, self.grad_torque = np.zeros((3,10)), np.zeros((3,10))
         self.acc=np.zeros(3)
-        self.speed=np.array([24,0,0])
+        self.speed=np.array([0.001,0,0])
         self.pos=np.zeros(3)
         
         #   Rotation
         self.omegadot=np.zeros(3)
         self.omega=np.array([0,0,0])
-        self.q=np.array(tf3d.quaternions.axangle2quat([0, 1, 0], 0.07))
+        self.q=np.array([1,0,0,0])
         self.R=tf3d.quaternions.quat2mat(self.q) 
         self.takeoff =0
         
@@ -70,14 +70,14 @@ class MoteurPhysique():
                                "alpha0" : np.array([0.07,0.07,0,0,0.07]),\
                                "alpha_stall" : 0.3391428111 ,                     \
                                "largeur_stall" : 15.0*np.pi/180,                  \
-                               "cd0sa" : 0.045,\
-                               "cd0fp" : 0.045,\
+                               "cd0sa" : 0.010,\
+                               "cd0fp" : 0.010,\
                                "cd1sa" : 4.55, \
                                "cl1sa" : 5, \
                                "cd1fp" : 2.5, \
                                "coeff_drag_shift": 0.5, \
-                               "coeff_lift_shift": 0.5, \
-                               "coeff_lift_gain": 0.5,\
+                               "coeff_lift_shift": 0.05, \
+                               "coeff_lift_gain": 2.5,\
                                "Ct": 2e-4, \
                                "Cq": 1e-8, \
                                "Ch": 1e-4,\
@@ -188,13 +188,14 @@ class MoteurPhysique():
         for j,p in enumerate(self.Dict_world["mode"]):
             if p==0:
                 self.joystick_input[j] = 0
+                
            
         # Mise à niveau des commandes pour etre entre -15 et 15 degrés 
          # (l'input est entre -250 et 250 initialement)
         self.Dict_Commande["delta"] = np.array([self.joystick_input[0], -self.joystick_input[0], \
                                                 (self.joystick_input[1] - self.joystick_input[2]) \
-                                                , (self.joystick_input[1] + self.joystick_input[2]) , 0]) \
-            
+                                                , (self.joystick_input[1] + self.joystick_input[2]) , 0])
+        
         self.Dict_Commande["rotor_speed"] =  self.moy_rotor_speed + self.joystick_input[3]
                                                                      
         R_list         = [self.R, self.R, self.Rotation(self.R, 45), self.Rotation(self.R,-45), self.R]
@@ -243,6 +244,7 @@ class MoteurPhysique():
                 if self.takeoff==0:
                     self.forces[2]=min(self.forces[2],0)
                     
+                    
 ################## Calcul du gradient #################
         else:
             if (t)<T_init:
@@ -255,7 +257,7 @@ class MoteurPhysique():
                     liftDirection  = self.Effort_function[2](self.omega, cp, self.speed.flatten(), v_W, R_list[p].flatten())
                     alpha_list[p] = self.Effort_function[3](dragDirection, liftDirection, frontward_Body, VelinLDPlane)
                     
-########## Calcul compact à partir d'une liste des angles d'attaques, le calcul des coeffs aéro est compris dedans
+                # Calcul compact à partir d'une liste des angles d'attaques, le calcul des coeffs aéro est compris dedans
                 self.grad_forces, self.grad_torque = self.Effort_function[5](A_list, self.omega, self.R.flatten(), self.speed.flatten(),\
                                                   v_W, cp_list,alpha_list, alpha_0_list,\
                                                    alpha_s, self.Dict_Commande["delta"], \
@@ -264,7 +266,7 @@ class MoteurPhysique():
                                                   self.Dict_variables["Ct"], self.Dict_variables["Cq"], \
                                                   self.Dict_variables["Ch"],self.Dict_Commande["rotor_speed"])
               
-                for col in range((np.size(self.Theta))):
+                for col in range(np.size(self.Theta)):
                     self.grad_forces[:,col]= self.R @ np.array((self.grad_forces[0,col],self.grad_forces[1,col],self.grad_forces[2,col]))
                     self.grad_torque[:,col]= self.R @ np.array((self.grad_torque[0,col],self.grad_torque[1,col],self.grad_torque[2,col]))
                     if self.takeoff==0:
