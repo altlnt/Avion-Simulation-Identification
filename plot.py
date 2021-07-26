@@ -14,7 +14,7 @@ from pylab import *
 import os
 import matplotlib.pyplot as plt
 # %matplotlib qt
-datadir=sort(os.listdir(os.path.join(os.getcwd(),"Logs")))[-2]
+datadir=sort(os.listdir(os.path.join(os.getcwd(),"Logs")))[-1]
 
 data=pd.read_csv(os.path.join(os.getcwd(),"Logs",datadir,'log.txt'))
 

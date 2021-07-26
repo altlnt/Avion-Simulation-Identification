@@ -89,8 +89,8 @@ class OptiMonitor_MPL():
         for p, i in enumerate([self.ax02, self.ax03]):
             i.grid()
             i.set_xlabel('time')
-            i.set_ylabel("RMS error "+name_graph[p])
-            i.legend()   
+            i.set_ylabel("Percent of cost for "+name_graph[p])
+            i.legend()
             
         # Chargement des paramètres si il est pas fait lors de l'initialisation de la classe (par défaut prend le dernier log)
         if params_real==None:
@@ -141,7 +141,7 @@ class OptiMonitor_MPL():
     
             for p, i in enumerate([self.ax02, self.ax03]):
                 i.set_xlabel('epoch')
-                i.set_ylabel("RMS error "+name_graph[p])
+                i.set_ylabel("Percent of cost ")
                 i.legend()  
                 
             self.ax01.set_xlabel('epoch')
@@ -178,8 +178,8 @@ class OptiMonitor_MPL():
             self.legend(epoch=False)
             
         else:
-            ##### Met à jour les graphs en fonctions des épochs. 
-            ### Verifiation si la valeur finale est atteinte. 
+            ##### Met à jour les graphs à chaque epochs. 
+            # ### Verifiation si la valeur finale est atteinte. 
             # if self.t>0:
             #     for keys_params in self.error_dic.keys():
             #         if len(self.dict_params_finish)>=4:
@@ -190,16 +190,16 @@ class OptiMonitor_MPL():
             #                 if abs(first_mean-second_mean)<0.05:
             #                     self.dict_params_finish[keys_params]=(first_mean+second_mean)/2
             #                     print("end opti for :" + keys_params + " with mean = " +str( self.dict_params_finish[keys_params]))
-
-            #     for keys_params in self.error_dic.keys():
-            #         begin = int((self.t-1)*len(self.error_dic[keys_params])/self.t)
-            #         first_mean = np.mean(self.error_dic[keys_params][begin: begin+ 2*int(len(self.error_dic[keys_params][begin:-1])/3)])
-            #         second_mean = np.mean(self.error_dic[keys_params][begin+2*int(len(self.error_dic[keys_params][begin:-1])/3):-1])
-            #         if abs(first_mean-second_mean)<0.05 :
+            #         else: 
             #             if keys_params not in self.dict_params_finish.keys():
-            #                 if keys_params not in ['coeff_lift_gain', 'coeff_lift_shift']:
-            #                     self.dict_params_finish[keys_params]=(first_mean+second_mean)/2
-            #                     print("end opti for :" + keys_params + " with mean = " +str( self.dict_params_finish[keys_params]))
+            #                 if keys in not ['coeff_lift_gain', 'coeff_lift_shift']:
+            #                     begin = int((self.t-1)*len(self.error_dic[keys_params])/self.t)
+            #                     first_mean = np.mean(self.error_dic[keys_params][begin: begin+ 2*int(len(self.error_dic[keys_params][begin:-1])/3)])
+            #                     second_mean = np.mean(self.error_dic[keys_params][begin+2*int(len(self.error_dic[keys_params][begin:-1])/3):-1])
+            #                     if abs(first_mean-second_mean)<0.05 :
+            #                         if keys_params not in self.dict_params_finish.keys():
+            #                             self.dict_params_finish[keys_params]=(first_mean+second_mean)/2
+            #                             print("end opti for :" + keys_params + " with mean = " +str( self.dict_params_finish[keys_params]))
             
             # print("End opti for :", self.dict_params_finish.keys())
             for ax in [self.ax01,self.ax02,self.ax03,self.ax3, self.ax4, self.ax5, self.ax6, self.ax7,self.ax8]:

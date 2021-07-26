@@ -38,9 +38,7 @@ result_dir_name=result_dir_name if result_dir_name!="" else str(len(os.listdir(r
 
 os.makedirs(os.path.join(result_save_path,result_dir_name))
 
-
 spath=os.path.join(result_save_path,result_dir_name)
-
 
 MoteurPhysique=MPHI(called_from_opti=True)
 ### Chargemnt des variables utulisé pour l'opti à partir du fichier produit de fonctions (obtenu avec le jupyter-lab)
@@ -74,7 +72,6 @@ current_test_score=0
 sample_nmbr=0
 simulator_called=0
 
-
 ########################### params 
 
 temp_df=raw_data.drop(columns=['alpha'])
@@ -104,8 +101,6 @@ data_prepared_train,data_prepared_test=train_test_split(data_prepared,test_size=
 
 data_prepared_train,data_prepared_test=data_prepared_train.reset_index(),data_prepared_test.reset_index()
 
-
-
 X_train=data_prepared_train[[i for i in data_prepared.keys() if not (('forces' in i) or ('torque' in i))]]
 X_test=data_prepared_test[[i for i in data_prepared.keys() if not (('forces' in i) or ('torque' in i))]]
 Y_train=data_prepared_train[[i for i in data_prepared.keys() if (('forces' in i) or ('torque' in i))]]
@@ -129,7 +124,6 @@ def Dict_variables_to_X(Dict,opti_variables_keys=opti_variables_keys):
 #####  Transformation d'un liste en un dictionnaire utisable par le moteur physique.   
 def X_to_Dict_Variables(V, opti_variables_keys=opti_variables_keys, start_Dict_variables=start_Dict_variables):
     Dict={}
-    
     counter=0
     #### Ajout des valeurs utiliser pour l'identifation (paramètres de la liste)
     for i in np.sort([i for i in opti_variables_keys]):
@@ -155,7 +149,7 @@ def generate_random_params(X_params,amp_dev=0.0,verbose=True):
     
     return new_X_params
 
-def model(X_params, x_data):
+def model(X_params, x_data, y_data=None, compute_cost=None):
     ### Cette fonction permet de faire tourner le moteur physique pour un jeu de paramètres, avec un jeu de données d'entrée
     
     t,takeoff=x_data[0],x_data[1]
@@ -170,21 +164,23 @@ def model(X_params, x_data):
     MoteurPhysique.omega=omega
     MoteurPhysique.R=tf3d.quaternions.quat2mat(MoteurPhysique.q).reshape((3,3))
     MoteurPhysique.takeoff=takeoff
+    MoteurPhysique.y_data=y_data
+
     
     if type(X_params)==dict:
         MoteurPhysique.Dict_variables=X_params
     else:
         MoteurPhysique.Dict_variables=X_to_Dict_Variables(X_params)
 
-    MoteurPhysique.compute_dynamics(joystick_input,t)
-    d=np.r_[MoteurPhysique.forces,MoteurPhysique.torque]
+    if not compute_cost==None:
+        output, RMS_forces, RMS_torque =MoteurPhysique.compute_cost(joystick_input,t)
+        return output, RMS_forces, RMS_torque
+    else: 
+        MoteurPhysique.compute_dynamics(joystick_input,t)
+        d=np.r_[MoteurPhysique.forces,MoteurPhysique.torque]
     
-    output=d.reshape((1,6))
-    output
-    
-    return output
-
-
+        output=d.reshape((1,6))
+        return output
 
 def cost(X_params,x_data,y_data,verbose=False, RMS=None):
     ### Calcul de la fonction de cout : Moyenne de la sommes des erreurs au carré
@@ -198,31 +194,20 @@ def cost(X_params,x_data,y_data,verbose=False, RMS=None):
 
     used_x_batch=x_data
     used_y_batch=y_data
-    y_pred_batch=[]
-    y_pred_batch=np.vstack([model(X_params, used_x_batch[i]) for i in range(len(used_x_batch))])
-
     
-    y_pred_batch_error_sq=(used_y_batch-y_pred_batch)**2
+    C,RMS_forces, RMS_torque=0,0,0
+    for k in range(len(used_x_batch)):
+        cout, forces, torque = model(X_params, used_x_batch[k], used_y_batch[k], compute_cost=True) 
+        RMS_forces+=forces
+        RMS_torque+=torque
+        C+=cout
 
-    y_pred_batch_error_dict={}
-    y_pred_batch_error_dict['sum_forces']=sum([y_pred_batch_error_sq[i][0] for i in range(len(y_pred_batch_error_sq))])
-    y_pred_batch_error_dict['sum_forces']+sum([y_pred_batch_error_sq[i][1] for i in range(len(y_pred_batch_error_sq))])
-    y_pred_batch_error_dict['sum_forces']+=sum([y_pred_batch_error_sq[i][2] for i in range(len(y_pred_batch_error_sq))])
-    
-    y_pred_batch_error_dict['sum_torques']=sum([y_pred_batch_error_sq[i][3] for i in range(len(y_pred_batch_error_sq))])
-    y_pred_batch_error_dict['sum_torques']+=sum([y_pred_batch_error_sq[i][4] for i in range(len(y_pred_batch_error_sq))])
-    y_pred_batch_error_dict['sum_torques']+=sum([y_pred_batch_error_sq[i][5] for i in range(len(y_pred_batch_error_sq))])
- 
-    sum_error_forces=y_pred_batch_error_dict['sum_forces']/len(y_pred_batch_error_sq)
+    C/=len(used_x_batch)
+    RMS_forces/=len(used_x_batch)
+    RMS_torque/=len(used_x_batch)       # C=cout_forces*np.sum(sum_error_forces) + cout_torque*np.sum(sum_error_torque)
 
-    sum_error_torque=y_pred_batch_error_dict['sum_torques']/len(y_pred_batch_error_sq)
-    
-    cout_forces=1.0
-    cout_torque=1.0
-    C=cout_forces*np.sum(sum_error_forces) + cout_torque*np.sum(sum_error_torque)
-    #     print("Epoch "+str(current_epoch)+" sample "+str(sample_nmbr) + "/" +str(len(x_data))+" "+usage+' cost : '+str(C))
-    if not RMS==None:
-        return C, np.sum(sum_error_forces) , np.sum(sum_error_torque)
+    if RMS==True:
+        return C, RMS_forces , RMS_torque
     else:
         return C
         
@@ -244,37 +229,33 @@ def compute_symbolic_gradient(X_params,x_data, y_data, W):
     ### Calul du gradient numérique par le calcul symolique (utilisé pour l'opti)
         # MoteurPhysique.Dict_variables=X_to_Dict_Variables(X_params)
         MoteurPhysique.Theta = opti_variables_keys
-        Gradien_results = []
-        y_pred_batch=np.vstack([model(X_params,x_data[i]) for i in range(len(x_data))])
-           
+        Grad_list = []
         for i in range(len(x_data)):
+            "Prepartion des entrées du systèmes"
             t,takeoff=x_data[i,0],x_data[i,1]
-            
             speed=x_data[i,5:8]
             omega=x_data[i,11:14]
             q=x_data[i,14:18]
             joystick_input=x_data[i,18:]
 
+            "Preparation des conditions initales pour le moteur physique"
             MoteurPhysique.speed=speed
             MoteurPhysique.q=q
             MoteurPhysique.omega=omega
             MoteurPhysique.R=tf3d.quaternions.quat2mat(MoteurPhysique.q).reshape((3,3))
             MoteurPhysique.takeoff=takeoff
+            MoteurPhysique.y_data=y_data[i]
+            " Calcule du gradient symbolique à partir de l'équation sympy"
             MoteurPhysique.compute_dynamics(joystick_input, t , compute_gradF=True)  
-            Gradien_results.append(np.r_[MoteurPhysique.grad_forces,MoteurPhysique.grad_torque])
+            Grad_list.append(MoteurPhysique.grad_cout)
 
-            Gradien_results[i]
-        " grad = -2 *(y_data-y_pred) * gradient "
-
-        gradbatch=[(-2.0*W@(y_data[i]-y_pred_batch[i])@(Gradien_results[i]))\
-                    for i in range(len(y_pred_batch))]
-        gradbatch=np.array([i.reshape((len(X_params),)) for i in gradbatch])
-        grad = sum(gradbatch[i] for i in range(len(gradbatch)))/ len(gradbatch) 
+        "Calul de la moyenne du gradient pour le batch"
+        grad = sum(Grad_list[i] for i in range(len(Grad_list)))/ len(Grad_list) 
+        grad=grad[0]
         if not np.linalg.norm(grad)==0:
-            return grad
+            return grad/np.linalg.norm(grad)
         else:
             return grad
-
 
 ### Params PID gradient
 gradient_kp=1
@@ -287,11 +268,11 @@ G =10*0
 ####### Params pour l'opti ######
 n_params_dropout = 0      # Bloque un certain nombre de paramètres à chaque térations pour augmenter le facteur aléatoire, si il est =0 on fait une identification paramètres par paramètres.
 begin_opti=0     # Donne le premier parmaètres à optimiser si on fait une identification param par param
-train_batch_size=20
+train_batch_size=5
 fitting_strategy="custom_gradient"
-n_epochs=30
-learning_rate=1e-2
-list_learning_rate=[learning_rate, learning_rate*10000, learning_rate*200, learning_rate*400, learning_rate*80, learning_rate*10]
+n_epochs=100
+learning_rate=5
+# list_learning_rate=[learning_rate, learning_rate*10000, learning_rate*200, learning_rate*400, learning_rate*80, learning_rate*10]
 name=("Opti avec Learning rate initial = "+str(format(learning_rate, '.1E'))+" Avec PID = "+str(gradient_kp)+"/" +str(gradient_ki) + "/" + str(gradient_kd)+" avec des batch de taille :"+ str(train_batch_size))
 
 ########## Initialisation des paramètres #########
@@ -301,23 +282,25 @@ y_train = Y_train
 x_test = X_test
 y_test = Y_test
 
+# Matrice comprenant les max des forces et des couples pour la normalisation des efforts. 
 max_forces=[max(abs(y_train[i][j]) for i in range(len(y_train))) for j in range(3)]
 max_torque=[max(abs(y_train[i][j+3]) for i in range(len(y_train))) for j in range(3)]
-W = np.diag([1/max_forces[0], 1/max_forces[1], 1/max_forces[2], 1/max_torque[0], 1/max_torque[1], 1/max_torque[2]]) 
+W = np.diag([1/max_forces[0]**2, 1/max_forces[1]**2, 1/max_forces[2]**2, 1/max_torque[0]**2, 1/max_torque[1]**2, 1/max_torque[2]**2]) 
+MoteurPhysique.W = W
 
 current_train_score=1.
 start_Dict_variables = X_to_Dict_Variables(generate_random_params\
                     (Dict_variables_to_X(real_Dict_variables),amp_dev=1,verbose=True))
 current_Dict_variables =start_Dict_variables
-current_Dict_variables['cd0sa']=0.010
-current_Dict_variables['cl1sa']=5.0005
-current_Dict_variables['cd1sa']=4.5501
-current_Dict_variables['coeff_drag_shift']=0.5002
-current_Dict_variables['coeff_lift_shift']=0.045
-current_Dict_variables['coeff_lift_gain']=2.52
-
-
 best_Dict_variables = current_Dict_variables
+
+# current_Dict_variables['cd0sa']=0.010
+# current_Dict_variables['cl1sa']=5.0005
+# current_Dict_variables['cd1sa']=4.5501
+# current_Dict_variables['coeff_drag_shift']=0.5002
+# current_Dict_variables['coeff_lift_shift']=0.045
+# current_Dict_variables['coeff_lift_gain']=2.52
+
 
 ######### Création du monitor ##########
 monitor=OptiMonitor_MPL(name,opti_variables_keys=opti_variables_keys, params_real=true_params)
@@ -325,15 +308,11 @@ monitor.x_data=data_prepared['t'].values     # Temps de la simulation pour la co
 monitor.init_params=start_Dict_variables
 monitor.current_params=start_Dict_variables
 monitor.y_sim = [model(current_Dict_variables, X_test_sim[i]) for i in range(len(X_test_sim))]
-# monitor.y_train,monitor.y_eval= current_train_score,current_test_score
-# current_test_score, monitor.RMS_forces, monitor.RMS_torque =cost(current_Dict_variables, x_test, y_test, verbose=True, RMS=True)
 monitor.y_real= Y_test_sim        # Valeur réel des efforts 
-# monitor.current_params_to_opti =list(start_Dict_variables.keys())[begin_opti]
-# monitor.opti_params_by_params=params_by_params
-t2 = time.time()
-# monitor.update(epoch=True)
-list_index=[]
 
+t2 = time.time()
+
+list_index=[]
 z=0 # Compteur pour l'affichage des simulations en fonctions des epochs 
 ############ Début de l'optimization ##########
 for i in range(n_epochs):
@@ -355,18 +334,19 @@ for i in range(n_epochs):
                 if type(sdict[i])==np.ndarray:
                     sdict[i]=sdict[i].tolist() 
                     
-
             json.dump(sdict,f)
            
     "opti loop"
     x_train_batch=[]
     y_train_batch=[]           
-
+    
+    #MAJ du monitor
     monitor.t = current_epoch
     current_test_score, monitor.RMS_forces, monitor.RMS_torque =cost(current_Dict_variables, x_test, y_test, verbose=True, RMS=True)
     monitor.y_eval, monitor.y_train = current_test_score,current_train_score
     monitor.update(epoch=True)
-
+    
+    #MAj du monitor des simulations. 
     n_update_sim=(n_epochs)/3
     if (monitor.t+1) % n_update_sim==0:
         monitor.update_sim_monitor(n_epoch=z)
@@ -376,12 +356,7 @@ for i in range(n_epochs):
         z+=1
     sample_nmbr=0
     current_epoch+=1
-    if current_epoch==1:
-        train_batch_size=30
-    else:
-        train_batch_size=5
-    if train_batch_size<=10:
-        learning_rate=0.5
+
     while sample_nmbr<(len(x_train)-1):     
         
         x_train_batch.append(x_train[sample_nmbr])
@@ -395,7 +370,6 @@ for i in range(n_epochs):
             
             x_train_batch=np.vstack(x_train_batch)
             y_train_batch=np.vstack(y_train_batch)                        
-            # previous_Dict_variables=current_Dict_variables
 
             if fitting_strategy=="scipy":
                 scaler=Dict_variables_to_X(start_Dict_variables)
@@ -409,9 +383,6 @@ for i in range(n_epochs):
                 current_Dict_variables=X_to_Dict_Variables(res['x']*scaler)
                 
             if fitting_strategy=="custom_gradient":
-                
-                # scaler=Dict_variables_to_X(start_Dict_variables)
-                # scaler=np.array([i if i!=0 else 1.0 for i in scaler ])
 
                 X0_params=Dict_variables_to_X(current_Dict_variables)
                 G_pred = G
@@ -422,18 +393,16 @@ for i in range(n_epochs):
                     G_dot= (G_pred-G)
                 G_sum+=G
 
-                G_total = (gradient_kp * G + gradient_ki * G_sum + gradient_kd * G_dot)
+                G_total = (gradient_kp * G) + (gradient_ki * G_sum) + (gradient_kd * G_dot)
                 if not n_params_dropout==0:
                     for lzar in range(n_params_dropout):
                         kir=np.random.randint(0,len(X0_params))
                         G_total[kir]= 0
-
+                        
                 for index in list_index:
                     G_total[index]=0
-
                 new_X=X0_params  - (learning_rate*G_total* Dict_variables_to_X(start_Dict_variables))
                 current_Dict_variables=X_to_Dict_Variables(new_X)
-                
             print('########################')
             x_train_batch=[]
             y_train_batch=[]   
