@@ -24,7 +24,7 @@ class MoteurPhysique():
     def __init__(self,called_from_opti=False,T_init=1.0):
         
         
-        self.save_path_base=os.path.join("../Logs",datetime.now().strftime("%Y_%m_%d_%Hh%Mm%Ss"))
+        self.save_path_base=os.path.join("../Logs/log_sim",datetime.now().strftime("%Y_%m_%d_%Hh%Mm%Ss"))
 
         if not called_from_opti:
             os.makedirs(self.save_path_base)
@@ -57,11 +57,13 @@ class MoteurPhysique():
         self.W = np.eye(6)
         
         ####### Dictionnaire des paramètres du monde 
-        self.Dict_world     = {"wind" : np.array([0,0,0]),                        \
-                               "g"    : np.array([0,0,9.81]),                    \
+        self.Dict_world     = {"g"    : np.array([0,0,9.81]),                    \
                                "mode" : [1,1,1,1]}   # Permet de bloquer les commandes (0 commande bloquer, 1 commande active)
         ####### Dictionnaire des paramètres pour l'optimisation
-        self.Dict_variables = {"masse": 8.5 , \
+        self.Dict_variables = {"wind_X" :0,  \
+                               "wind_Y" :0,  \
+                               "wind_Z" :0,  \
+                               "masse": 8.5 , \
                                "inertie": np.diag([1.38,0.84,2.17]),\
                                "aire" : [0.62*0.262* 1.292 * 0.5, 0.62*0.262* 1.292 * 0.5, 0.34*0.01* 1.292 * 0.5, 0.34*0.1* 1.292 * 0.5, 1.08*0.31* 1.292 * 0.5],\
                                "cp_list": [np.array([-0.013,0.475,-0.040],       dtype=np.float).flatten(), \
@@ -151,34 +153,18 @@ class MoteurPhysique():
         r = np.array(( (1,0, 0), (0,c, s),(0,-s, c)) , dtype=np.float)
         return R @ r
     
-    def EulerAngle(self, q):
-        # Calcul les angles roll, pitch, yaw en fonction du quaternion, utiliser uniquement pour le plot
-        sinr_cosp = 2 * (q[0] * q[1] + q[2] * q[3])
-        cosr_cosp = 1 - 2 * (q[1] * q[1] + q[2] * q[2])
-        roll = np.arctan2(sinr_cosp, cosr_cosp)
-        
-        sinp = 2 * (q[0] * q[2] - q[3] * q[1])
-        if (abs(sinp) >= 1):
-            pitch = np.sign(np.pi/ 2, sinp) 
-        else:
-            pitch = np.arcsin(sinp)
-        siny_cosp = 2 * (q[0] * q[3] + q[1] * q[2]);
-        cosy_cosp = 1 - 2 * (q[2] * q[2] + q[3] * q[3])
-        yaw = np.arctan2(siny_cosp, cosy_cosp)
-        
-        return np.array([roll,pitch,yaw])
-    
-    def compute_dynamics(self,joystick_input,t, compute_gradF=None):
-        # Ouverture du fichier de fonction, on obtient une liste de fonction obtenu avec le jupyter lab.
-            
+    def Init(self,joystick_input,t):
         T_init=self.T_init    # Temps pendant laquelle les forces ne s'appliquent pas sur le drone
         self.joystick_input_log= joystick_input
         
         for q,i in enumerate(joystick_input):      # Ajout d'une zone morte dans les commandes 
             if abs(i)<40 :
                 self.joystick_input[q] = 0
-            elif q==3 : 
-                self.joystick_input[q] = joystick_input[q]/250 *  self.moy_rotor_speed
+            elif q==3 :
+                if joystick_input[q]/250<-0.70:
+                    self.joystick_input[q]=0
+                else:
+                    self.joystick_input[q] = joystick_input[q]/250 *  self.moy_rotor_speed
             else:
                 self.joystick_input[q] = joystick_input[q] * 15 *np.pi/180 / 250 
         
@@ -200,7 +186,7 @@ class MoteurPhysique():
         self.Dict_Commande["rotor_speed"] =  self.moy_rotor_speed + self.joystick_input[3]
                                                                      
         R_list         = [self.R, self.R, self.Rotation(self.R, 45), self.Rotation(self.R,-45), self.R]
-        v_W            = self.Dict_world["wind"]
+        v_W            = np.array([self.Dict_variables["wind_X"],self.Dict_variables["wind_Y"],self.Dict_variables["wind_Z"]])
         frontward_Body = np.transpose(np.array([[1,0,0]]))
         A_list         = self.Dict_variables["aire"]
         alpha_0_list   = self.Dict_variables["alpha0"]
@@ -215,7 +201,34 @@ class MoteurPhysique():
         k0    = self.Dict_variables["coeff_drag_shift"]
         k1    = self.Dict_variables["coeff_lift_shift"]
         k2    = self.Dict_variables["coeff_lift_gain"]
+        
+        return R_list,v_W,frontward_Body, A_list, alpha_0_list, alpha_s, delta_s, cp_list, cd1sa, cl1sa, cd0sa, cd1fp, cd0fp, k0, k1, k2
+    
+    def EulerAngle(self, q):
+        # Calcul les angles roll, pitch, yaw en fonction du quaternion, utiliser uniquement pour le plot
+        sinr_cosp = 2 * (q[0] * q[1] + q[2] * q[3])
+        cosr_cosp = 1 - 2 * (q[1] * q[1] + q[2] * q[2])
+        roll = np.arctan2(sinr_cosp, cosr_cosp)
+        
+        sinp = 2 * (q[0] * q[2] - q[3] * q[1])
+        if (abs(sinp) >= 1):
+            pitch = np.sign(np.pi/ 2, sinp) 
+        else:
+            pitch = np.arcsin(sinp)
+        siny_cosp = 2 * (q[0] * q[3] + q[1] * q[2]);
+        cosy_cosp = 1 - 2 * (q[2] * q[2] + q[3] * q[3])
+        yaw = np.arctan2(siny_cosp, cosy_cosp)
+        
+        return np.array([roll,pitch,yaw])
+    
+    def compute_dynamics(self,joystick_input,t, compute_gradF=None):
+        # Ouverture du fichier de fonction, on obtient une liste de fonction obtenu avec le jupyter lab.
+            
+        T_init=self.T_init    # Temps pendant laquelle les forces ne s'appliquent pas sur le drone
 
+        R_list,v_W,frontward_Body, A_list, alpha_0_list, alpha_s, delta_s, cp_list,\
+            cd1sa, cl1sa, cd0sa, cd1fp, cd0fp, k0, k1, k2 = self.Init(joystick_input,t)
+            
         if compute_gradF==None:
             if (t)<T_init:
                 self.forces= np.array([0,0,0]) 
@@ -270,49 +283,9 @@ class MoteurPhysique():
      
     def compute_cost(self,joystick_input,t):
         #### Calcul du cout (Somme des erreurs)
-        self.joystick_input_log= joystick_input
-        
-        for q,i in enumerate(joystick_input):      # Ajout d'une zone morte dans les commandes 
-            if abs(i)<40 :
-                self.joystick_input[q] = 0
-            elif q==3 : 
-                self.joystick_input[q] = joystick_input[q]/250 *  self.moy_rotor_speed
-            else:
-                self.joystick_input[q] = joystick_input[q] * 15 *np.pi/180 / 250 
-        
-        for j,p in enumerate(self.Dict_world["mode"]):
-            if p==0:
-                self.joystick_input[j] = 0
-                           
-        # Mise à niveau des commandes pour etre entre -15 et 15 degrés 
-         # (l'input est entre -250 et 250 initialement)
-        self.Dict_Commande["delta"] = np.array([-self.joystick_input[0], self.joystick_input[0], \
-                                                (self.joystick_input[1] - self.joystick_input[2]) \
-                                                , (self.joystick_input[1] + self.joystick_input[2]) , 0])
-            
-        for l,m in enumerate(self.Dict_Commande["delta"]):
-            if m>15:
-                self.Dict_Commande["delta"][l]=15
-        
-        self.Dict_Commande["rotor_speed"] =  self.moy_rotor_speed + self.joystick_input[3]
-                                                                     
-        R_list         = [self.R, self.R, self.Rotation(self.R, 45), self.Rotation(self.R,-45), self.R]
-        v_W            = self.Dict_world["wind"]
-        frontward_Body = np.transpose(np.array([[1,0,0]]))
-        A_list         = self.Dict_variables["aire"]
-        alpha_0_list   = self.Dict_variables["alpha0"]
-        alpha_s        = self.Dict_variables["alpha_stall"]
-        delta_s        = self.Dict_variables["largeur_stall"]  
-        cp_list        = self.Dict_variables['cp_list']
-        cd1sa = self.Dict_variables["cd1sa"]            
-        cl1sa = self.Dict_variables["cl1sa"]
-        cd0sa = self.Dict_variables["cd0sa"]
-        cd1fp = self.Dict_variables["cd1fp"]
-        cd0fp = self.Dict_variables["cd0fp"]
-        k0    = self.Dict_variables["coeff_drag_shift"]
-        k1    = self.Dict_variables["coeff_lift_shift"]
-        k2    = self.Dict_variables["coeff_lift_gain"]
-           
+
+        R_list,v_W,frontward_Body, A_list, alpha_0_list, alpha_s, delta_s, cp_list,\
+            cd1sa, cl1sa, cd0sa, cd1fp, cd0fp, k0, k1, k2 = self.Init(joystick_input,t) 
         alpha_list=[0,0,0,0,0]
         for p, cp in enumerate(cp_list) :          # Cette boucle calcul les coefs aéro pour chaque surface 
             VelinLDPlane   = self.Effort_function[0](self.omega, cp, self.speed.flatten(), v_W, R_list[p].flatten())
@@ -456,12 +429,3 @@ class MoteurPhysique():
         self.log_state()
         
         return
-
-# Moteur=MoteurPhysique()
-
-# t0=time.time()
-# new_t=t0
-# while new_t-t0<2.0:
-#     new_t=time.time()
-#     Moteur.update_sim(new_t-t0,None)
-#     time.sleep(0.01)

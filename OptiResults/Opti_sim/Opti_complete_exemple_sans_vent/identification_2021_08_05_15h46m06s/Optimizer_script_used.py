@@ -24,26 +24,27 @@ from pylab import sort
 from datetime import datetime
 import csv
 
-#%% Initialisation des paramètres
-log_real=True
+log_real=False
 plot=True
-log_name='Optimizer_script.py'
-name_script='parallele_opti.py'
-train_batch_size=15 
-n_epochs=1000
-learning_rate=1e-3
-fitting_strategy='custom_gradient'
 
-# %% Initialisation de l'opti en fonction des données d'entrées (réelles ou simulées) et créations des noms des dossier
+if log_real==True:
+    log_path=os.path.join('/home/mehdi/Documents/identification_modele_avion/Logs/log_real/log_5_2021-7-20-11-12-20/log_real.csv')     
+else:
+    log_dir_path=os.path.join("/home/mehdi/Documents/identification_modele_avion/Logs/log_sim",\
+                              sort(os.listdir("/home/mehdi/Documents/identification_modele_avion/Logs/log_sim"))[-1])
+    log_path=os.path.join(log_dir_path,"log.txt")     
+    true_params_path=os.path.join(log_dir_path,"params.json")
+    
+name_script='Optimizer_script2.py'
 if log_real==True:
     plot=False
-    log_path=os.path.join('/home/mehdi/Documents/identification_modele_avion/Logs/log_real/'+log_name+'/log_real.csv')     
-    
+
+if log_real==True:
     "#### Chargement des données depuis le fichier de log, et initialisation de l'optimizeur, attention"
     "les noms des variables peuvent être trompeur quand on fait une optimization avec des données réelles"
     "#### Ex : true_params ne signifie pas les paramètres réels, mais seulement les paramètres initiaux de l'opti"
-    true_params     =  {"wind_X" :2.5,  \
-                        "wind_Y" :2,  \
+    true_params     =  {"wind_X" :0.01,  \
+                        "wind_Y" :0.01,  \
                         "wind_Z" :0,  \
                         "g"    : np.array([0,0,9.81]),                    \
                         "mode" : [1,1,1,1],\
@@ -72,31 +73,25 @@ if log_real==True:
                         "rotor_moy_speed":925/2}
         
     raw_data=pd.read_csv(log_path)
-    
-    result_save_path="../OptiResults/Opti_real"
-    result_dir_name="identification_"+datetime.now().strftime("%Y_%m_%d_%Hh%Mm%Ss")
-    result_dir_name=result_dir_name if result_dir_name!="" else str(len(os.listdir(result_save_path))+1)
-
 else:
-    log_dir_path=os.path.join("/home/mehdi/Documents/identification_modele_avion/Logs/log_sim",\
-                              sort(os.listdir("/home/mehdi/Documents/identification_modele_avion/Logs/log_sim"))[-1])
-    log_path=os.path.join(log_dir_path,"log.txt")     
-    true_params_path=os.path.join(log_dir_path,"params.json")
-    
     "#### Chargement des données de simulation, et initialisation de l'optimizeur"
     with open(true_params_path,"r") as f:
         true_params=json.load(f)
         raw_data=pd.read_csv(log_path)
+
+if log_real==True:
+    result_save_path="../OptiResults/Opti_real"
+    result_dir_name="identification_"+datetime.now().strftime("%Y_%m_%d_%Hh%Mm%Ss")
+    result_dir_name=result_dir_name if result_dir_name!="" else str(len(os.listdir(result_save_path))+1)
+else:
     result_save_path="../OptiResults/Opti_sim"
     result_dir_name="identification_"+datetime.now().strftime("%Y_%m_%d_%Hh%Mm%Ss")
     result_dir_name=result_dir_name if result_dir_name!="" else str(len(os.listdir(result_save_path))+1)
-    
-# %% Création des répertoires pour sauvegarder les données
+
 os.makedirs(os.path.join(result_save_path,result_dir_name))
 
 spath=os.path.join(result_save_path,result_dir_name)
 
-# %% Chargement du moteur physique et des paramètres utilisé pour l'opti a partir du jupyter
 MoteurPhysique=MPHI(called_from_opti=True)
 "### Chargemnt des variables utulisé pour l'opti à partir du fichier produit de fonctions (obtenu avec le jupyter-lab)"
 if not dill.load(open('../Simulation/function_moteur_physique','rb'))[-1]==None:
@@ -120,7 +115,6 @@ if not true_params==None:
 else:
     print("Error load true params")
 
-# %% Préparation des données pour l'opti
 x_train_batch=[]
 y_train_batch=[]
 
@@ -176,7 +170,6 @@ Y_test=Y_test.values
 X_test_sim = data_prepared.reset_index()[[i for i in data_prepared.keys() if not (('forces' in i) or ('torque' in i))]].values
 Y_test_sim = data_prepared.reset_index()[[i for i in data_prepared.keys() if (('forces' in i) or ('torque' in i))]].values
 
-# %% Fonction utilisé pour l'opti et la prépations des données
 "########################### funcs"
 "#####  Transformation d'un dictionnaire en une liste trié des données utiles pour l'identification. "
 def Dict_variables_to_X(Dict,opti_variables_keys=opti_variables_keys):
@@ -204,9 +197,9 @@ def generate_random_params(X_params,amp_dev=0.0,verbose=True):
     #     if params==0:
     #         X_params[p]=0.1
     new_X_params=X_params*(1+amp_dev*(np.random.random(size=len(X_params))-0.5))    
-    for p, params in enumerate(new_X_params):
-        if params==0:
-            new_X_params[p]=0.1
+    for params in new_X_params:
+        if params <=0:
+            params=0.0001
 
     print('\n[Randomization] X Old / X New variables: ')
     for i,j in zip(X_params,new_X_params):
@@ -307,7 +300,6 @@ def compute_symbolic_gradient(X_params,x_data, y_data, W):
     else:
         return grad
 
-# %% Initialisation des paramètres de l'opti
 "### Params PID gradient"
 gradient_kp=1
 gradient_kd=0
@@ -315,18 +307,21 @@ gradient_ki=0
 gradient_integ_lim=1
 gradient_func=None
 G_sum =0
-G =0
+G =10*0
 
 "####### Params pour l'opti ######"
 n_params_dropout = 0      # Bloque un certain nombre de paramètres à chaque térations pour augmenter le facteur aléatoire, si il est =0 on fait une identification paramètres par paramètres.
+train_batch_size=5
+fitting_strategy="custom_gradient"
+n_epochs=100
+learning_rate=5e-0
+# list_learning_rate=[learning_rate, learning_rate*10000, learning_rate*200, learning_rate*400, learning_rate*80, learning_rate*10]
 name=("Opti avec Learning rate initial = "+str(format(learning_rate, '.1E'))+" Avec PID = "+str(gradient_kp)+"/" +str(gradient_ki) + "/" + str(gradient_kd)+" avec des batch de taille :"+ str(train_batch_size))
 
-# %% Découpage des données pour l'entrainement et le test
 "########## Initialisation des paramètres #########"
 x_train = X_train
 y_train = Y_train
 
-"###### Choix d'un batch de données pour le calcul du cout lors de l'entrainement"
 begin = np.random.randint(len(X_train-100))
 end = begin+100
 x_train_cost = X_train[begin:end]
@@ -334,15 +329,15 @@ y_train_cost = Y_train[begin:end]
 
 x_test = X_test
 y_test = Y_test
+# print(x_train)
 
-# %% Création de la matrice des max des forces et couples
 "# Matrice comprenant les max des forces et des couples pour la normalisation des efforts. "
 max_forces=[max(abs(y_train[i][j]) for i in range(len(y_train))) for j in range(3)]
 max_torque=[max(abs(y_train[i][j+3]) for i in range(len(y_train))) for j in range(3)]
 W = np.diag([1/max_forces[0]**2, 1/max_forces[1]**2, 1/max_forces[2]**2, 1/max_torque[0]**2, 1/max_torque[1]**2, 1/max_torque[2]**2]) 
 MoteurPhysique.W = W
 
-#%% Initatilisation des variables et du train score
+"Initatilisation des variables et du train score"
 if log_real==True:
     current_train_score=1.
     start_Dict_variables = real_Dict_variables
@@ -352,19 +347,10 @@ else:
     current_train_score=1.
     start_Dict_variables = X_to_Dict_Variables(generate_random_params\
                         (Dict_variables_to_X(real_Dict_variables),amp_dev=1,verbose=True))
-    # start_Dict_variables["cd0sa"]=0.00999326172362672
-    # start_Dict_variables["cd1sa"]=4.550179431280277
-    # start_Dict_variables["cl1sa"]=4.999740931136897
-    # start_Dict_variables["coeff_drag_shift"]=0.4999212041532855
-    # start_Dict_variables["coeff_lift_gain"]=2.429539624079285
-    # start_Dict_variables["coeff_lift_shift"]=0.06417931204686833
-    # start_Dict_variables["wind_X"]=0.0
-    # start_Dict_variables["wind_Y"]=0.0
-
     current_Dict_variables =start_Dict_variables
     best_Dict_variables = current_Dict_variables
 
-# %% Création du monitor 
+######### Création du monitor ##########
 monitor=OptiMonitor_MPL(name,opti_variables_keys=opti_variables_keys, params_real=true_params, opti_real=log_real, plot=plot)
 monitor.x_data=data_prepared['t'].values     # Temps de la simulation pour la comparaison y_sim/y_real
 monitor.init_params=start_Dict_variables
@@ -373,8 +359,10 @@ if log_real==False:
     monitor.y_sim = [model(current_Dict_variables, X_test_sim[i]) for i in range(len(X_test_sim))]
     monitor.y_real= Y_test_sim        # Valeur réel des efforts 
 
+
+# list_index=[]
 z=0 # Compteur pour l'affichage des simulations en fonctions des epochs 
-# %% création des fichier de sauvegarde ##########
+############ Début de l'optimization ##########
 
 if spath is not None:
     with open(os.path.join(spath,"Params_initiaux.csv"),'w') as f:
@@ -440,8 +428,6 @@ with open(os.path.join(spath,"results.csv"),'w',newline='') as f:
     spamwriter = csv.writer(f)
     spamwriter.writerow(sdict.keys())
        
-    
-# %% Début de l'optimization ####
 for i in range(n_epochs):
     "saving"
     

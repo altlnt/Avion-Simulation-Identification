@@ -127,8 +127,6 @@ class Log():
         angax=pd.read_csv(os.path.join(path,"angular_acc.csv"))
         angvel=pd.read_csv(os.path.join(path,"angular_vel.csv"))
 
-
-
         "preparing the interpolation"
         "the initial time for the interpolation is the latest first data for"
         "each file"
@@ -210,6 +208,10 @@ class Log():
             angvelinterp=interp1d(angvel.timestamp.values,angvel["xyz["+str(vel_)+"]"].values)
             DATA['ang_vel'+str(vel_)]=angvelinterp(clip(DATA['t'].values,min(angvel.timestamp.values),max(angvel.timestamp.values)))
 
+        for q_ in range(4):
+            anginterp=interp1d(attitude.timestamp.values,attitude["q["+str(q_)+"]"].values)
+            DATA['q['+str(q_)+"]"]=anginterp(clip(DATA['t'].values,min(attitude.timestamp.values),max(attitude.timestamp.values)))        
+
         attinterp=interp1d(attitude.timestamp.values,att.T)
         rsatt=attinterp(clip(DATA['t'].values,min(attitude.timestamp.values),max(attitude.timestamp.values)))
 
@@ -263,6 +265,7 @@ class Log():
         print("WRITING XLS FILE FOR FUTURE IMPORTS")
         DATA.to_pickle(self.ulg_path+"/DATA")
         self.DATA=DATA
+
         return
 
 
@@ -278,13 +281,12 @@ class Log():
                         'motors_tilt_sp':-array([pi/2])}
 
         return ctrl_input
-    
-    def data_to_dic(self):
-        # self.DATA= pickle.load(open(self.csv_path+"/DATA", "rb"))
-        f = self.DATA
-        dic_data={}
         
-        q = [tf3d.quaternions.mat2quat(f.R.values[i]) for i in range(len(f.t))]
+    def data_to_dic(self):
+        self.DATA= pickle.load(open(self.ulg_path+"/DATA", "rb"))
+        f = self.DATA
+
+        dic_data={}
 
         dic_data['t']=f.t.values
         
@@ -308,10 +310,8 @@ class Log():
         dic_data['omega[1]']=f.ang_vel1.values
         dic_data['omega[2]']=f.ang_vel2.values
         
-        dic_data["q[0]"]= [q[j][0] for j in range(len(q))]
-        dic_data["q[1]"] = [q[j][1] for j in range(len(q))]
-        dic_data["q[2]"] = [q[j][2] for j in range(len(q))]
-        dic_data["q[3]"] = [q[j][3] for j in range(len(q))] 
+        for q_ in range(4):
+            dic_data["q["+str(q_)+"]"]=f["q["+str(q_)+"]"].values
 
         dic_data['forces[0]']=f.ax.values * 8.5
         dic_data['forces[1]']=f.ay.values * 8.5
@@ -328,17 +328,17 @@ class Log():
 
         dic_data['takeoff']=[1 if f.z.values[i]<-2 else 0 for i in range(len(f.t))]
 
-        with open(os.path.join(self.ulg_path+"/log_real.csv"),'a',newline='') as log:
-            spamwriter = csv.writer(log)
-            spamwriter.writerow(dic_data.keys())
-            for j in range(len(f.t)):
-                if dic_data['takeoff'][j]==1:
-                    row = [values[j] for values in dic_data.values()]
-                    spamwriter.writerow(row)
+        data = pd.DataFrame(dic_data)
+        index_name=data[data['takeoff']==0].index
+
+        data.drop(index_name,inplace=True)
+        with open(os.path.join(self.ulg_path+"/log_real.csv"),'w',newline='') as log:
+            data.to_csv(log)
 
 
-log='log_3_2021-7-20-10-49-26'
-l=Log(ulg_path=os.getcwd()+"/"+log,csv_path=os.getcwd()+"/"+log+"/donnees_brut", log_name=log+'.ulg')
-l.log_to_csv()
+logs=["log_3_2021-7-20-10-49-26","log_4_2021-7-20-10-58-16", "log_5_2021-7-20-11-12-20", "log_6_2021-7-20-11-41-56"]
+log=logs[0]
+l=Log(ulg_path="/home/mehdi/Documents/identification_modele_avion/Logs/log_real/"+log,csv_path="/home/mehdi/Documents/identification_modele_avion/Logs/log_real/"+log+"/donnees_brut", log_name=log+'.ulg')
+# l.log_to_csv()
 l.import_log()
 l.data_to_dic()
