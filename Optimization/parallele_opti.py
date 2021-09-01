@@ -43,8 +43,8 @@ def main_func(x):
         "#### Chargement des données depuis le fichier de log, et initialisation de l'optimizeur, attention"
         "les noms des variables peuvent être trompeur quand on fait une optimization avec des données réelles"
         "#### Ex : true_params ne signifie pas les paramètres réels, mais seulement les paramètres initiaux de l'opti"
-        true_params     =  {"wind_X" :2.5,  \
-                            "wind_Y" :2,  \
+        true_params     =  {"wind_X" :-2,  \
+                            "wind_Y" :0.75,  \
                             "wind_Z" :0,  \
                             "g"    : np.array([0,0,9.81]),                    \
                             "mode" : [1,1,1,1],\
@@ -86,7 +86,9 @@ def main_func(x):
         
         "#### Chargement des données de simulation, et initialisation de l'optimizeur"
         with open(true_params_path,"r") as f:
+            print("chargement des vraies données de simu...")
             true_params=json.load(f)
+            print("Chargement réussi : \n " + str(true_params))
             raw_data=pd.read_csv(log_path)
         result_save_path="../OptiResults/Opti_sim"
         result_dir_name="identification_"+datetime.now().strftime("%Y_%m_%d_%Hh%Mm%Ss")
@@ -141,6 +143,7 @@ def main_func(x):
     n_params_dropout = 0      # Bloque un certain nombre de paramètres à chaque térations pour augmenter le facteur aléatoire, si il est =0 on fait une identification paramètres par paramètres.
    
 # %% Préparation des données pour l'opti
+    print("Préparation des données...")
 
     "########################### params "
     if log_real==None:
@@ -187,7 +190,8 @@ def main_func(x):
     "### Préparation des données non randomizé pour comparaison en simulation. "
     X_test_sim = data_prepared.reset_index()[[i for i in data_prepared.keys() if not (('forces' in i) or ('torque' in i))]].values
     Y_test_sim = data_prepared.reset_index()[[i for i in data_prepared.keys() if (('forces' in i) or ('torque' in i))]].values
-    
+    print("Done")
+
     
 # %% Fonction utilisé pour l'opti et la prépations des données
     "########################### funcs"
@@ -367,20 +371,21 @@ def main_func(x):
         best_Dict_variables = current_Dict_variables
     
 # %% Création du monitor 
+    print("Création du monitor...")
     monitor=OptiMonitor_MPL(name,opti_variables_keys=opti_variables_keys, params_real=true_params, opti_real=log_real, plot=plot)
+    print("Done")
     monitor.x_data=data_prepared['t'].values     # Temps de la simulation pour la comparaison y_sim/y_real
     monitor.init_params=start_Dict_variables
     monitor.current_params=start_Dict_variables
     if log_real==False:
+        print("Simulation avec les paramètres initiaux...")
         monitor.y_sim = [model(current_Dict_variables, X_test_sim[i]) for i in range(len(X_test_sim))]
+        print("Done")
         monitor.y_real= Y_test_sim        # Valeur réel des efforts 
-    
-    
-    # list_index=[]
     z=0 # Compteur pour l'affichage des simulations en fonctions des epochs 
     
 # %% création des fichier de sauvegarde ##########
-    
+    print("Ecriture des fichiers de sauvegarde de l'opti...")
     if spath is not None:
         with open(os.path.join(spath,"Params_initiaux.csv"),'w') as f:
             sdict={}
@@ -408,7 +413,7 @@ def main_func(x):
             spamwriter.writerow(sdict.values())
     
             
-        with open(os.path.join(spath, "Optimizer_script_used.py"), 'w') as f:
+        with open(os.path.join(spath, "Otpi_used.py"), 'w') as f:
             f.write(open(name_script).read())
             
             
@@ -444,7 +449,8 @@ def main_func(x):
                 sdict[i]=sdict[i].tolist() 
         spamwriter = csv.writer(f)
         spamwriter.writerow(sdict.keys())
-           
+    print("done \n Début de l'optimisation :")
+
 # %% Début de l'optimization ####
     for i in range(n_epochs):
         "saving"
@@ -604,18 +610,24 @@ from multiprocessing import Pool
 
 if __name__ == '__main__':
      
-    log_real=[True,True,True]
-    plot=[True,True,True]
-    log_name=["log_4_2021-7-20-10-58-16", "log_5_2021-7-20-11-12-20", "log_6_2021-7-20-11-41-56"]
-    train_batch_size=[5,20,50]
-    learning_rate=[1e-3,1e-3,1e-3]
-    fitting_strategy = ['custom_gradient', 'custom_gradient', 'custom_gradient']
+    log_real=[True, True]
+    plot=[False,False]
+    log_name=[""]
+    train_batch_size=5
+    learning_rate=[1e-2, 5e-2]
+    fitting_strategy = ['custom_gradient']
     
-    x_r = [[log_real[i], plot[i],log_name[i],train_batch_size[i],learning_rate[i], fitting_strategy[i], i+1] for i in range(3)]
-
-
-    pool = Pool(processes=3)
-    pool.map(main_func, x_r)                         
+    x_r = [[log_real[1], plot[1],log_name[0],train_batch_size,learning_rate[j+1], fitting_strategy[0]] for j in range(1)]
+    L= len(x_r)
+    for k in range(L):
+        x_r[k].append(k+1)
+        print('\n'+str(x_r[k]))
+    r =input('Continue ? ( /n)')
+    if r=="n":
+        print("Stop proccess")
+    else:
+        pool = Pool(processes=1)
+        pool.map(main_func, x_r)                         
         
         
         

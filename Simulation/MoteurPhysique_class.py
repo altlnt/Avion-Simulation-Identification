@@ -136,7 +136,9 @@ class MoteurPhysique():
                     self.SaveDict[key]=np.array(dic[key]).tolist()
             with open(os.path.join(self.save_path_base,'params.json'), 'w') as fp:
                 json.dump(self.SaveDict, fp)
-        
+            with open(os.path.join(self.save_path_base,'MoteurPhysique.py'), 'w') as mp:
+                mp.write(open("MoteurPhysique_class.py").read())
+
             print(self.data_save_path)
     
     def orthonormalize(self,R_i):
@@ -154,9 +156,9 @@ class MoteurPhysique():
         return R @ r
     
     def Init(self,joystick_input,t):
-        T_init=self.T_init    # Temps pendant laquelle les forces ne s'appliquent pas sur le drone
         self.joystick_input_log= joystick_input
-        
+        self.moy_rotor_speed = self.Dict_variables["rotor_moy_speed"]
+
         for q,i in enumerate(joystick_input):      # Ajout d'une zone morte dans les commandes 
             if abs(i)<40 :
                 self.joystick_input[q] = 0
@@ -175,7 +177,7 @@ class MoteurPhysique():
            
         # Mise à niveau des commandes pour etre entre -15 et 15 degrés 
          # (l'input est entre -250 et 250 initialement)
-        self.Dict_Commande["delta"] = np.array([self.joystick_input[0],-self.joystick_input[0], \
+        self.Dict_Commande["delta"] = np.array([self.joystick_input[0], -self.joystick_input[0], \
                                                 (self.joystick_input[1] - self.joystick_input[2]) \
                                                 , (self.joystick_input[1] + self.joystick_input[2]) , 0])
             
@@ -237,6 +239,7 @@ class MoteurPhysique():
                     print("Début des commandes dans :", T_init-t)
             else: 
                 alpha_list=[0,0,0,0,0]
+                
                 for p, cp in enumerate(cp_list) :          # Cette boucle calcul les coefs aéro pour chaque surface 
                     VelinLDPlane   = self.Effort_function[0](self.omega, cp, self.speed.flatten(), v_W, R_list[p].flatten())
                     dragDirection  = self.Effort_function[1](self.omega, cp, self.speed.flatten(), v_W, R_list[p].flatten())
