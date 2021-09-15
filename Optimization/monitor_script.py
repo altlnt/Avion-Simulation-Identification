@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -14,6 +15,7 @@ import pandas as pd
 import transforms3d as tf3d
 import numpy as np
 from Simulation.MoteurPhysique_class import MoteurPhysique as MPHI
+import time
 
 if input('Log real ? (y/n)')=='y':    
     log_real=True
@@ -27,7 +29,6 @@ else:
 if input('Continue ? (y/n)') =="n":
     print("Exit program")
 else:
-          
     trace =input('Tracer la/les simulation(s) des données avec le nouveau jeu de params ? ( /n)')
     Nb_opti =int(input('Nombre d opti a afficher : '))
     first_opti = int(input('Numéro de la première opti a afficher :'))
@@ -98,13 +99,21 @@ else:
             list_fig[n].plot(val)
             list_fig[n].set_ylabel(keys)
             list_fig[n].set_xlabel('sample')
+            if max(dic_results['train_score'].values)>50:
+                if keys not in ['train_score', 'wind_X', 'wind_Y','eval_score']:
+                    list_fig[n].set_ylim((0,dic_params_init[keys].values*50))
+                elif keys in ["wind_X","wind_Y"]:
+                    list_fig[n].set_ylim((-abs(dic_params_init[keys].values*3),abs(dic_params_init[keys].values*3)))
+                elif keys=='train_score':
+                    list_fig[n].set_ylim((0,val[0]*3))
+
             list_fig[n].grid()
             n+=1
             
         print('Logs : ' + dic_params_init['log'].values[0])
     
     #%% Simulation en fonction des paramètre
-    
+
         raw_data=pd.read_csv(dic_params_init['log'].values[0])
     
         "########################### params "
@@ -158,7 +167,7 @@ else:
                     Dict[i]=start_Dict_variables[i]
             return Dict
         
-        def model(X_params,x_data, y_data=None, log_real=False):
+        def model(X_params,x_data, y_data=None, log_real=False, MoteurPhysique=MoteurPhysique):
             
             "### Cette fonction permet de faire tourner le moteur physique pour un jeu de paramètres, avec un jeu de données d'entrée"
             t,takeoff=x_data[0],x_data[1]
@@ -182,20 +191,37 @@ else:
             MoteurPhysique.omega=omega
             MoteurPhysique.R=tf3d.quaternions.quat2mat(MoteurPhysique.q)
             MoteurPhysique.takeoff=takeoff
-            if not y_data==None:
+            if not y_data is None:
                 MoteurPhysique.y_data=y_data
             
-            if type(X_params)==dict:
+            if type(X_params) is dict:
                 MoteurPhysique.Dict_variables=X_params
             else:
                 MoteurPhysique.Dict_variables=X_to_Dict_Variables(X_params)
-            
+                
+            # MoteurPhysique.Dict_variables['cd1sa']=1.2
+            # MoteurPhysique.Dict_variables['cl1sa']=2
+
+            # MoteurPhysique.Dict_variables['coeff_lift_shift']=0.5
+
+            # MoteurPhysique.Dict_variables['rotor_moy_speed']=450*0
+            # MoteurPhysique.Dict_variables['aire']=[(0.62)*0.262* 1.292 * 0.5,\
+            #                                         (0.62)*0.262* 1.292 * 0.5, \
+            #                                         0.34*0.01* 1.292 * 0.5, 0.34*0.1* 1.292 * 0.5,\
+            #                                         1.08*0.31* 1.292 * 0.5]
+
             MoteurPhysique.compute_dynamics(joystick_input,t)
             d=np.r_[MoteurPhysique.forces,MoteurPhysique.torque]
         
             output=d.reshape((1,6))
             return output
         
+        current_Dict_variables['cl1sa']=2.3
+        current_Dict_variables['cd1sa']=0.25
+        # current_Dict_variables['cd0sa']=0.2
+        # current_Dict_variables['coeff_lift_shift']=0.5
+        # current_Dict_variables['coeff_lift_gain']=2
+
         X_params=Dict_variables_to_X(current_Dict_variables)
         # Init_Dict_variables = {i : dic_params_init[i] for i in MoteurPhysique.Dict_variables.keys()}
         if log_real==True:
@@ -209,33 +235,52 @@ else:
 
         if not trace=='n':
             if log_real==True:
-                beg=(int(np.random.random()*len(X_data))-10000)*0
+                beg=(int(np.random.random()*len(X_data))-10000)
+                if beg>len(X_data)-10000:
+                    beg=len(X_data)-10100
+                elif beg<0:
+                    beg=10
                 en=beg+10000
             else:
                 beg=0
                 en=len(X_data)
-
-            y_sim_end = [model(X_params, X_data[beg+v], log_real=log_real)      for v in range(en-beg)]
+            
+            t1 = time.time() 
+            y_sim_end = [model(X_params, X_data[beg+v], log_real=log_real) for v in range(en-beg)]
+            t2 = time.time() 
+            print("End for sim with end params in : "+str(t2-t1)+" s")
             y_sim_begin=[model(X_params_init, X_data[beg+v], log_real=log_real) for v in range(en-beg)]
+            t3 = time.time()    
+            print("End for sim with begin params in : "+str(t3-t2)+" s")
+
 
             liste_name=['Force', 'Couple']
             fig_sim=plt.figure("Simulation pour l'opti "+opti_name)
+            
+            L_real=['darkgreen','darkred','darkblue'] 
+            L_sim_end=['lightgreen','lightcoral','skyblue']
+            L_sim_begin=['green','red','blue']
             for w in range(6):
-
+                
                 x_plot = [X_data[beg+j][0] for j in range(en-beg)]
                 y_plot = [Y_data[beg+j][w] for j in range(en-beg)]
-
+                
                 y_end=[y_sim_end[j][0][w] for j in range(en-beg)]
                 y_begin=[y_sim_begin[j][0][w] for j in range(en-beg)]
 
                 figure=fig_sim.add_subplot(2,3,w+1)
-                figure.plot(x_plot,y_plot, label="real data")
-                figure.plot(x_plot, y_begin, label="simu avant opti")
-                figure.plot(x_plot, y_end, label="simu post opti")
-                figure.legend()
+                
+                
                 if w<3:
+                    figure.plot(x_plot,y_plot, label="real data", color=L_real[w])
+                    figure.plot(x_plot, y_begin, label="simu avant opti", color=L_sim_begin[w], linestyle='--')
+                    figure.plot(x_plot, y_end, label="simu post opti", color=L_sim_end[w],linestyle='--')
                     figure.set_ylabel(liste_name[0]+"["+str(w)+"] (N)")
                 else:
+                    figure.plot(x_plot,y_plot, label="real data", color=L_real[w-3])
+                    figure.plot(x_plot, y_begin, label="simu avant opti", color=L_sim_begin[w-3],linestyle='--')
+                    figure.plot(x_plot, y_end, label="simu post opti", color=L_sim_end[w-3],linestyle='--')
                     figure.set_ylabel(liste_name[1]+"["+str(w-3)+"] (N/m)")
+                figure.legend()
                 figure.set_xlabel('Time (s)')
                 figure.grid()

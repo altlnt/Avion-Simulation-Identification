@@ -14,9 +14,9 @@ from pylab import *
 import os
 import matplotlib.pyplot as plt
 # %matplotlib qt
-datadir=sort(os.listdir(os.path.join(os.getcwd(),"Logs")))[-1]
+datadir=sort(os.listdir(os.path.join(os.getcwd(),"Logs/log_sim")))[-1]
 
-data=pd.read_csv(os.path.join(os.getcwd(),"Logs",datadir,'log.txt'))
+data=pd.read_csv(os.path.join(os.getcwd(),"Logs/log_sim",datadir,'log.txt'))
 
 f,axes=plt.subplots(nrows=6,ncols=6)
 
@@ -40,7 +40,7 @@ for i,key in enumerate([i for i in data.keys() if i!="t"]):
     if "q" in key:
         cu_ax.set_ylim(-1,1)
     if "forces" in key:
-        cu_ax.set_ylim(-200,200)
+        cu_ax.set_ylim(-450,450)
     if "torque" in key:
         cu_ax.set_ylim(-100,100)
     if "alpha" in key:

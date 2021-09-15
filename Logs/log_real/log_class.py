@@ -315,7 +315,7 @@ class Log():
 
         dic_data['forces[0]']=f.ax.values * 8.5
         dic_data['forces[1]']=f.ay.values * 8.5
-        dic_data['forces[2]']=f.az.values * 8.5
+        dic_data['forces[2]']=(f.az.values) * 8.5
         
         dic_data['torque[0]']=f.ang_acc0.values * 1.38
         dic_data['torque[1]']=f.ang_acc1.values * 0.84
@@ -326,7 +326,7 @@ class Log():
         dic_data['joystick[2]']=f.ctrl2.values * 250 
         dic_data['joystick[3]']=(f.ctrl3.values-0.5)*2 * 250
 
-        dic_data['takeoff']=[1 if f.z.values[i]<-2 else 0 for i in range(len(f.t))]
+        dic_data['takeoff']=[1 if f.z.values[i]<-10 else 0 for i in range(len(f.t))]
 
         data = pd.DataFrame(dic_data)
         index_name=data[data['takeoff']==0].index
@@ -337,8 +337,10 @@ class Log():
 
 
 logs=["log_3_2021-7-20-10-49-26","log_4_2021-7-20-10-58-16", "log_5_2021-7-20-11-12-20", "log_6_2021-7-20-11-41-56"]
-log=logs[0]
-l=Log(ulg_path="/home/mehdi/Documents/identification_modele_avion/Logs/log_real/"+log,csv_path="/home/mehdi/Documents/identification_modele_avion/Logs/log_real/"+log+"/donnees_brut", log_name=log+'.ulg')
-# l.log_to_csv()
-l.import_log()
-l.data_to_dic()
+for i in range(len(logs)):
+    os.chdir("/home/mehdi/Documents/identification_modele_avion/Logs/log_real/")
+    log=logs[i]
+    l=Log(ulg_path="/home/mehdi/Documents/identification_modele_avion/Logs/log_real/"+log,csv_path="/home/mehdi/Documents/identification_modele_avion/Logs/log_real/"+log+"/donnees_brut", log_name=log+'.ulg')
+    l.log_to_csv()
+    l.import_log()
+    l.data_to_dic()

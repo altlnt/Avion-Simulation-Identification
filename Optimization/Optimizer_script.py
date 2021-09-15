@@ -26,13 +26,17 @@ import csv
 
 function=dill.load(open('../Simulation/function_moteur_physique','rb'))
 #%% Initialisation des paramètres
-log_real=False
-plot=True
+log_real=True
+plot=False
 log_name=''
 name_script='Optimizer_script.py'
 train_batch_size=5 
 n_epochs=1000
-learning_rate=1e-2
+type_grad="wind_only"
+if log_real==False:
+    learning_rate=5
+else:
+    learning_rate=1e-2
 fitting_strategy='custom_gradient'
  
 #%% Initialisation de l'opti en fonction des données d'entrées (réelles ou simulées) et créations des noms des dossier
@@ -101,11 +105,15 @@ spath=os.path.join(result_save_path,result_dir_name)
 
 # %% Chargement du moteur physique et des paramètres utilisé pour l'opti a partir du jupyter
 MoteurPhysique=MPHI(called_from_opti=True)
-"### Chargemnt des variables utulisé pour l'opti à partir du fichier produit de fonctions (obtenu avec le jupyter-lab)"
-if not dill.load(open('../Simulation/function_moteur_physique','rb'))[-1]==None:
-    opti_variables_keys=dill.load(open('../Simulation/function_moteur_physique','rb'))[-1]
+MoteurPhysique=MPHI(called_from_opti=True)
+if not type_grad==None:
+    print("Chargement des fonctions du moteur physique...")
+    MoteurPhysique.Effort_function=dill.load(open('../Simulation/function_moteur_physique'+type_grad,'rb'))
+    MoteurPhysique.Theta = MoteurPhysique.Effort_function[-1]
+    opti_variables_keys=MoteurPhysique.Theta
+    print("Done")
 else:
-    print("Attention aux chargement des params pour l'identif")
+    print("Attention aux chargement des params/fonctions du moteur physique")
     opti_variables_keys=['alpha0',
                          'cd1sa',
                           'cl1sa',
@@ -113,6 +121,7 @@ else:
                           'coeff_drag_shift',
                           'coeff_lift_shift',
                           'coeff_lift_gain']
+
 
 opti_variables_keys.sort()        # Trie de la liste par ordre alphabétique. 
 "### Initialisation des dictionnaires de paramètres en fonctions des paramètres pour l'otpimisation." 
@@ -476,16 +485,14 @@ for i in range(n_epochs):
            
     "opti loop"
     x_train_batch=[]
-    y_train_batch=[]           
-    
-    "MAJ du monitor"
-    monitor.t = current_epoch
-    current_test_score, monitor.RMS_forces, monitor.RMS_torque =cost(current_Dict_variables, x_test, y_test, verbose=True, RMS=True)
-    monitor.y_eval, monitor.y_train = current_test_score,current_train_score
-    monitor.update(epoch=True)
+    y_train_batch=[]            
     
     "MAj du monitor des simulations." 
     if log_real==False:
+        monitor.t = current_epoch
+        current_test_score, monitor.RMS_forces, monitor.RMS_torque =cost(current_Dict_variables, x_test, y_test, verbose=True, RMS=True)
+        monitor.y_eval, monitor.y_train = current_test_score,current_train_score
+        monitor.update(epoch=True)
         n_update_sim=(n_epochs)/3
         if (monitor.t+1) % n_update_sim==0:
             monitor.update_sim_monitor(n_epoch=z)
@@ -541,6 +548,9 @@ for i in range(n_epochs):
                     
                 "Descente : X = X0 - (Gain * Grad_norm * X_inital)"
                 new_X=X0_params  - (learning_rate*G_total* Dict_variables_to_X(start_Dict_variables))
+                for h,o in enumerate(new_X):
+                    if h<0:
+                        new_X[o]=0
                 current_Dict_variables=X_to_Dict_Variables(new_X)
             print('########################')
             x_train_batch=[]

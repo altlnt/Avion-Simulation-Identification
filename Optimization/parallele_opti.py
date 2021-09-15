@@ -33,7 +33,11 @@ def main_func(x):
     n_epochs=1000
     learning_rate=x[4]
     fitting_strategy=x[5]
-    num=x[6]
+    wind_X=x[6][0]
+    wind_Y=x[6][1]
+    type_grad=x[7]
+    
+    num=x[-1]
     # %% Initialisation de l'opti en fonction des données d'entrées (réelles ou simulées) et créations des noms des dossier
 
     if log_real==True:
@@ -43,8 +47,8 @@ def main_func(x):
         "#### Chargement des données depuis le fichier de log, et initialisation de l'optimizeur, attention"
         "les noms des variables peuvent être trompeur quand on fait une optimization avec des données réelles"
         "#### Ex : true_params ne signifie pas les paramètres réels, mais seulement les paramètres initiaux de l'opti"
-        true_params     =  {"wind_X" :-2,  \
-                            "wind_Y" :0.75,  \
+        true_params     =  {"wind_X" :wind_X,  \
+                            "wind_Y" :wind_Y,  \
                             "wind_Z" :0,  \
                             "g"    : np.array([0,0,9.81]),                    \
                             "mode" : [1,1,1,1],\
@@ -70,7 +74,7 @@ def main_func(x):
                             "Ct": 1.1e-4, \
                             "Cq": 1e-8, \
                             "Ch": 1e-4,\
-                            "rotor_moy_speed":925/2}
+                            "rotor_moy_speed":900/2}
             
         raw_data=pd.read_csv(log_path)
         
@@ -101,12 +105,14 @@ def main_func(x):
 # %% Chargement du moteur physique et des paramètres utilisé pour l'opti a partir du jupyter
 
     MoteurPhysique=MPHI(called_from_opti=True)
-    
-    "### Chargemnt des variables utulisé pour l'opti à partir du fichier produit de fonctions (obtenu avec le jupyter-lab)"
-    if not dill.load(open('../Simulation/function_moteur_physique','rb'))[-1]==None:
-        opti_variables_keys=dill.load(open('../Simulation/function_moteur_physique','rb'))[-1]
+    if not type_grad==None:
+        print("Chargement des fonctions du moteur physique...")
+        MoteurPhysique.Effort_function=dill.load(open('../Simulation/function_moteur_physique'+type_grad,'rb'))
+        MoteurPhysique.Theta = MoteurPhysique.Effort_function[-1]
+        opti_variables_keys=MoteurPhysique.Theta
+        print("Done")
     else:
-        print("Attention aux chargement des params pour l'identif")
+        print("Attention aux chargement des params/fonctions du moteur physique")
         opti_variables_keys=['alpha0',
                              'cd1sa',
                               'cl1sa',
@@ -217,9 +223,6 @@ def main_func(x):
         return Dict
     
     def generate_random_params(X_params,amp_dev=0.0,verbose=True):
-        # for p,params in enumerate(X_params):
-        #     if params==0:
-        #         X_params[p]=0.1
         new_X_params=X_params*(1+amp_dev*(np.random.random(size=len(X_params))-0.5))    
         for p, params in enumerate(new_X_params):
             if params==0:
@@ -476,15 +479,13 @@ def main_func(x):
         "opti loop"
         x_train_batch=[]
         y_train_batch=[]           
-        
-        "MAJ du monitor"
-        monitor.t = current_epoch
-        current_test_score, monitor.RMS_forces, monitor.RMS_torque =cost(current_Dict_variables, x_test, y_test, verbose=True, RMS=True)
-        monitor.y_eval, monitor.y_train = current_test_score,current_train_score
-        monitor.update(epoch=True)
-        
+
         "MAj du monitor des simulations." 
         if log_real==False:
+            monitor.t = current_epoch
+            current_test_score, monitor.RMS_forces, monitor.RMS_torque =cost(current_Dict_variables, x_test, y_test, verbose=True, RMS=True)
+            monitor.y_eval, monitor.y_train = current_test_score,current_train_score
+            monitor.update(epoch=True)
             n_update_sim=(n_epochs)/3
             if (monitor.t+1) % n_update_sim==0:
                 monitor.update_sim_monitor(n_epoch=z)
@@ -540,6 +541,15 @@ def main_func(x):
                         
                     "Descente : X = X0 - (Gain * Grad_norm * X_inital)"
                     new_X=X0_params  - (learning_rate*G_total* Dict_variables_to_X(start_Dict_variables))
+                    for h,o in enumerate(new_X):
+                        if o<0:
+                            if not type_grad in ["wind_only","params_plus_wind"]:
+                                new_X[h]=0
+                            else:
+                                index_ = [opti_variables_keys.index(name) for name in ["wind_X", "wind_Y"]]
+                                if not h in index_:
+                                    new_X[h]=0
+                                    
                     current_Dict_variables=X_to_Dict_Variables(new_X)
                 print('########################')
                 x_train_batch=[]
@@ -613,11 +623,13 @@ if __name__ == '__main__':
     log_real=[True, True]
     plot=[False,False]
     log_name=[""]
-    train_batch_size=5
-    learning_rate=[1e-2, 5e-2]
+    train_batch_size=15
+    learning_rate=[5e-2, 5e-2]
     fitting_strategy = ['custom_gradient']
+    wind = [-2,-0.75]
+    type_grad = ['params']
     
-    x_r = [[log_real[1], plot[1],log_name[0],train_batch_size,learning_rate[j+1], fitting_strategy[0]] for j in range(1)]
+    x_r = [[log_real[1], plot[1],log_name[0],train_batch_size,learning_rate[j], fitting_strategy[0], wind, t] for j in range(1) for t in type_grad]
     L= len(x_r)
     for k in range(L):
         x_r[k].append(k+1)
@@ -626,7 +638,7 @@ if __name__ == '__main__':
     if r=="n":
         print("Stop proccess")
     else:
-        pool = Pool(processes=1)
+        pool = Pool(processes=2)
         pool.map(main_func, x_r)                         
         
         

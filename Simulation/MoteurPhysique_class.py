@@ -10,18 +10,18 @@ import sys
 sys.path.append('../')
 import numpy as np
 import os
-import time
+# import time
 from datetime import datetime
 import transforms3d as tf3d
 import dill as dill
 import json
-from collections import OrderedDict
+# from collections import OrderedDict
 
 dill.settings['recurse'] = True
 
 
 class MoteurPhysique():
-    def __init__(self,called_from_opti=False,T_init=1.0):
+    def __init__(self,called_from_opti=False,T_init=0.0):
         
         
         self.save_path_base=os.path.join("../Logs/log_sim",datetime.now().strftime("%Y_%m_%d_%Hh%Mm%Ss"))
@@ -63,7 +63,7 @@ class MoteurPhysique():
         self.Dict_variables = {"wind_X" :0,  \
                                "wind_Y" :0,  \
                                "wind_Z" :0,  \
-                               "masse": 8.5 , \
+                               "masse"  : 8.5 , \
                                "inertie": np.diag([1.38,0.84,2.17]),\
                                "aire" : [0.62*0.262* 1.292 * 0.5, 0.62*0.262* 1.292 * 0.5, 0.34*0.01* 1.292 * 0.5, 0.34*0.1* 1.292 * 0.5, 1.08*0.31* 1.292 * 0.5],\
                                "cp_list": [np.array([-0.013,0.475,-0.040],       dtype=np.float).flatten(), \
@@ -152,7 +152,7 @@ class MoteurPhysique():
 
     def Rotation(self,R,angle):
         c, s = np.cos(angle*np.pi/180), np.sin(angle*np.pi/180)
-        r = np.array(( (1,0, 0), (0,c, s),(0,-s, c)) , dtype=np.float)
+        r = np.array([[1,0, 0], [0,c, s],[0,-s, c]] , dtype=np.float)
         return R @ r
     
     def Init(self,joystick_input,t):
@@ -160,7 +160,7 @@ class MoteurPhysique():
         self.moy_rotor_speed = self.Dict_variables["rotor_moy_speed"]
 
         for q,i in enumerate(joystick_input):      # Ajout d'une zone morte dans les commandes 
-            if abs(i)<40 :
+            if abs(i)<1 :
                 self.joystick_input[q] = 0
             elif q==3 :
                 if joystick_input[q]/250<-0.70:
@@ -187,7 +187,7 @@ class MoteurPhysique():
         
         self.Dict_Commande["rotor_speed"] =  self.moy_rotor_speed + self.joystick_input[3]
                                                                      
-        R_list         = [self.R, self.R, self.Rotation(self.R, 45), self.Rotation(self.R,-45), self.R]
+        R_list         = [self.R, self.R, self.Rotation(self.R, 45), self.Rotation(self.R,135), self.R]
         v_W            = np.array([self.Dict_variables["wind_X"],self.Dict_variables["wind_Y"],self.Dict_variables["wind_Z"]])
         frontward_Body = np.transpose(np.array([[1,0,0]]))
         A_list         = self.Dict_variables["aire"]
@@ -244,7 +244,7 @@ class MoteurPhysique():
                     VelinLDPlane   = self.Effort_function[0](self.omega, cp, self.speed.flatten(), v_W, R_list[p].flatten())
                     dragDirection  = self.Effort_function[1](self.omega, cp, self.speed.flatten(), v_W, R_list[p].flatten())
                     liftDirection  = self.Effort_function[2](self.omega, cp, self.speed.flatten(), v_W, R_list[p].flatten())
-                    alpha_list[p] = self.Effort_function[3](dragDirection, liftDirection, frontward_Body, VelinLDPlane)
+                    alpha_list[p] = -self.Effort_function[3](dragDirection, liftDirection, frontward_Body, VelinLDPlane)
 
                 self.Dict_etats['alpha'] = alpha_list[-1]
 
@@ -255,12 +255,16 @@ class MoteurPhysique():
                                                    cd0sa, cd1sa, \
                                                   self.Dict_variables["Ct"], self.Dict_variables["Cq"], \
                                                   self.Dict_variables["Ch"],self.Dict_Commande["rotor_speed"])
+                # print(forces)
+                # forces=np.array([forces[2], forces[1],forces[0]])
+                # torque=np.array([torque[2], torque[1],torque[0]])
 
-                self.forces= self.R @ np.transpose(forces.flatten()) +  self.Dict_variables["masse"] *self.Dict_world["g"]
-                self.torque = np.transpose(torque).flatten()  
+                # print(forces)
+
+                self.forces= self.R @ forces.flatten()+self.Dict_variables["masse"] *self.Dict_world["g"]
+                self.torque = self.R @ torque.flatten()  
                 if self.takeoff==0:
                     self.forces[2]=min(self.forces[2],0)
-                    
                     
 ################## Calcul du gradient #################
         else:
@@ -269,10 +273,9 @@ class MoteurPhysique():
                 VelinLDPlane   = self.Effort_function[0](self.omega, cp, self.speed.flatten(), v_W, R_list[p].flatten())
                 dragDirection  = self.Effort_function[1](self.omega, cp, self.speed.flatten(), v_W, R_list[p].flatten())
                 liftDirection  = self.Effort_function[2](self.omega, cp, self.speed.flatten(), v_W, R_list[p].flatten())
-                alpha_list[p] = self.Effort_function[3](dragDirection, liftDirection, frontward_Body, VelinLDPlane)
+                alpha_list[p] = -self.Effort_function[3](dragDirection, liftDirection, frontward_Body, VelinLDPlane)
             
             #######Calcul du gradient du cout avec une fonction symbolique qui reprend tout le calcul précédent
-
             self.grad_cout = self.Effort_function[9](self.y_data.flatten(), A_list, self.omega, self.R.flatten(), self.speed.flatten(),\
                                               v_W, cp_list,alpha_list, alpha_0_list,\
                                                alpha_s, self.Dict_Commande["delta"], \
@@ -282,7 +285,10 @@ class MoteurPhysique():
                                               self.Dict_variables["Ch"],self.Dict_Commande["rotor_speed"],\
                                               self.Dict_world["g"].flatten(),self.Dict_variables["masse"],\
                                               self.W[0,0], self.W[1,1], self.W[2,2],self.W[3,3], self.W[4,4], self.W[5,5])
- 
+            non_torque=True
+            if non_torque:    
+                self.grad_cout[:,3:]*=0 
+            
      
     def compute_cost(self,joystick_input,t):
         #### Calcul du cout (Somme des erreurs)
@@ -304,7 +310,7 @@ class MoteurPhysique():
                                               self.Dict_variables["Ct"], self.Dict_variables["Cq"], \
                                               self.Dict_variables["Ch"],self.Dict_Commande["rotor_speed"],\
                                               self.Dict_world["g"].flatten(),self.Dict_variables["masse"],self.W[0,0], self.W[1,1], self.W[2,2] )
-            
+
         RMS_torque = self.Effort_function[7](self.y_data, A_list, self.omega, self.R.flatten(), self.speed.flatten(),\
                                               v_W, cp_list,alpha_list, alpha_0_list,\
                                                alpha_s, self.Dict_Commande["delta"], \
