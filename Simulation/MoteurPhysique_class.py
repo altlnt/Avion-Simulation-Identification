@@ -255,14 +255,9 @@ class MoteurPhysique():
                                                    cd0sa, cd1sa, \
                                                   self.Dict_variables["Ct"], self.Dict_variables["Cq"], \
                                                   self.Dict_variables["Ch"],self.Dict_Commande["rotor_speed"])
-                # print(forces)
-                # forces=np.array([forces[2], forces[1],forces[0]])
-                # torque=np.array([torque[2], torque[1],torque[0]])
-
-                # print(forces)
 
                 self.forces= self.R @ forces.flatten()+self.Dict_variables["masse"] *self.Dict_world["g"]
-                self.torque = self.R @ torque.flatten()  
+                self.torque = self.R @ torque.flatten()
                 if self.takeoff==0:
                     self.forces[2]=min(self.forces[2],0)
                     
@@ -273,7 +268,7 @@ class MoteurPhysique():
                 VelinLDPlane   = self.Effort_function[0](self.omega, cp, self.speed.flatten(), v_W, R_list[p].flatten())
                 dragDirection  = self.Effort_function[1](self.omega, cp, self.speed.flatten(), v_W, R_list[p].flatten())
                 liftDirection  = self.Effort_function[2](self.omega, cp, self.speed.flatten(), v_W, R_list[p].flatten())
-                alpha_list[p] = -self.Effort_function[3](dragDirection, liftDirection, frontward_Body, VelinLDPlane)
+                alpha_list[p] = self.Effort_function[3](dragDirection, liftDirection, frontward_Body, VelinLDPlane)
             
             #######Calcul du gradient du cout avec une fonction symbolique qui reprend tout le calcul précédent
             self.grad_cout = self.Effort_function[9](self.y_data.flatten(), A_list, self.omega, self.R.flatten(), self.speed.flatten(),\
@@ -284,11 +279,11 @@ class MoteurPhysique():
                                               self.Dict_variables["Ct"], self.Dict_variables["Cq"], \
                                               self.Dict_variables["Ch"],self.Dict_Commande["rotor_speed"],\
                                               self.Dict_world["g"].flatten(),self.Dict_variables["masse"],\
-                                              self.W[0,0], self.W[1,1], self.W[2,2],self.W[3,3], self.W[4,4], self.W[5,5])
-            non_torque=True
-            if non_torque:    
-                self.grad_cout[:,3:]*=0 
-            
+                                              self.W[0,0], self.W[1,1], self.W[2,2],self.W[3,3]*0, self.W[4,4]*0, self.W[5,5]*0)
+            # non_torque=True
+            # if non_torque:    
+            #     self.grad_cout[:,3:]*=0 
+                # print(self.grad_cout)
      
     def compute_cost(self,joystick_input,t):
         #### Calcul du cout (Somme des erreurs)
@@ -311,7 +306,7 @@ class MoteurPhysique():
                                               self.Dict_variables["Ch"],self.Dict_Commande["rotor_speed"],\
                                               self.Dict_world["g"].flatten(),self.Dict_variables["masse"],self.W[0,0], self.W[1,1], self.W[2,2] )
 
-        RMS_torque = self.Effort_function[7](self.y_data, A_list, self.omega, self.R.flatten(), self.speed.flatten(),\
+        RMS_torque = 0*self.Effort_function[7](self.y_data, A_list, self.omega, self.R.flatten(), self.speed.flatten(),\
                                               v_W, cp_list,alpha_list, alpha_0_list,\
                                                alpha_s, self.Dict_Commande["delta"], \
                                                delta_s, cl1sa, cd1fp, k0, k1, k2, cd0fp, \

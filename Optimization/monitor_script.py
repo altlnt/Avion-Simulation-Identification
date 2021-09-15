@@ -198,17 +198,10 @@ else:
                 MoteurPhysique.Dict_variables=X_params
             else:
                 MoteurPhysique.Dict_variables=X_to_Dict_Variables(X_params)
-                
-            # MoteurPhysique.Dict_variables['cd1sa']=1.2
-            # MoteurPhysique.Dict_variables['cl1sa']=2
 
-            # MoteurPhysique.Dict_variables['coeff_lift_shift']=0.5
-
-            # MoteurPhysique.Dict_variables['rotor_moy_speed']=450*0
-            # MoteurPhysique.Dict_variables['aire']=[(0.62)*0.262* 1.292 * 0.5,\
-            #                                         (0.62)*0.262* 1.292 * 0.5, \
-            #                                         0.34*0.01* 1.292 * 0.5, 0.34*0.1* 1.292 * 0.5,\
-            #                                         1.08*0.31* 1.292 * 0.5]
+            MoteurPhysique.Dict_variables['alpha0' ] = np.array([0.03,0.03,0,0,0.03])
+            MoteurPhysique.Dict_variables['wind_X' ] =0
+            MoteurPhysique.Dict_variables['wind_Y' ] =0
 
             MoteurPhysique.compute_dynamics(joystick_input,t)
             d=np.r_[MoteurPhysique.forces,MoteurPhysique.torque]
@@ -216,11 +209,14 @@ else:
             output=d.reshape((1,6))
             return output
         
-        current_Dict_variables['cl1sa']=2.3
-        current_Dict_variables['cd1sa']=0.25
-        # current_Dict_variables['cd0sa']=0.2
-        # current_Dict_variables['coeff_lift_shift']=0.5
-        # current_Dict_variables['coeff_lift_gain']=2
+        # current_Dict_variables['cl1sa']=2.3
+        current_Dict_variables['cd1sa']=1.5
+        current_Dict_variables['cd0sa']=0.55
+        current_Dict_variables['coeff_lift_shift']=0.09
+                
+        current_Dict_variables['coeff_drag_shift']=0.65
+
+        current_Dict_variables['coeff_lift_gain']=3
 
         X_params=Dict_variables_to_X(current_Dict_variables)
         # Init_Dict_variables = {i : dic_params_init[i] for i in MoteurPhysique.Dict_variables.keys()}
@@ -249,7 +245,7 @@ else:
             y_sim_end = [model(X_params, X_data[beg+v], log_real=log_real) for v in range(en-beg)]
             t2 = time.time() 
             print("End for sim with end params in : "+str(t2-t1)+" s")
-            y_sim_begin=[model(X_params_init, X_data[beg+v], log_real=log_real) for v in range(en-beg)]
+            # y_sim_begin=[model(X_params_init, X_data[beg+v], log_real=log_real) for v in range(en-beg)]
             t3 = time.time()    
             print("End for sim with begin params in : "+str(t3-t2)+" s")
 
@@ -266,19 +262,22 @@ else:
                 y_plot = [Y_data[beg+j][w] for j in range(en-beg)]
                 
                 y_end=[y_sim_end[j][0][w] for j in range(en-beg)]
-                y_begin=[y_sim_begin[j][0][w] for j in range(en-beg)]
+                # y_begin=[y_sim_begin[j][0][w] for j in range(en-beg)]
 
                 figure=fig_sim.add_subplot(2,3,w+1)
-                
-                
+                R_arr=np.array([tf3d.quaternions.quat2mat([i,j,k,l]) for i,j,k,l in zip(data_prepared['q_0'],data_prepared['q_1'],data_prepared['q_2'],data_prepared['q_3'])]) 
+                vec_pousse = [ (dic_params_init['Ct'] * (dic_params_init['rotor_moy_speed']*(1+X_data[b][-1]/250))**2) for b in range(en-beg)]
+                poussee=R_arr[beg:en,:,0]*vec_pousse
                 if w<3:
                     figure.plot(x_plot,y_plot, label="real data", color=L_real[w])
-                    figure.plot(x_plot, y_begin, label="simu avant opti", color=L_sim_begin[w], linestyle='--')
+                    puiss=[poussee[l,w] for l in range(len(poussee))]
+                    figure.plot(x_plot,puiss, label='Poussé')
+                    # figure.plot(x_plot, y_begin, label="simu avant opti", color=L_sim_begin[w], linestyle='--')
                     figure.plot(x_plot, y_end, label="simu post opti", color=L_sim_end[w],linestyle='--')
                     figure.set_ylabel(liste_name[0]+"["+str(w)+"] (N)")
                 else:
                     figure.plot(x_plot,y_plot, label="real data", color=L_real[w-3])
-                    figure.plot(x_plot, y_begin, label="simu avant opti", color=L_sim_begin[w-3],linestyle='--')
+                    # figure.plot(x_plot, y_begin, label="simu avant opti", color=L_sim_begin[w-3],linestyle='--')
                     figure.plot(x_plot, y_end, label="simu post opti", color=L_sim_end[w-3],linestyle='--')
                     figure.set_ylabel(liste_name[1]+"["+str(w-3)+"] (N/m)")
                 figure.legend()

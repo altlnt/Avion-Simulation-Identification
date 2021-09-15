@@ -54,11 +54,11 @@ def main_func(x):
                             "mode" : [1,1,1,1],\
                             "masse": 8.5 , \
                             "inertie": np.diag([1.38,0.84,2.17]),\
-                            "aire" : [0.62*0.262* 1.292 * 0.5, 0.62*0.262* 1.292 * 0.5, 0.34*0.01* 1.292 * 0.5, 0.34*0.1* 1.292 * 0.5, 1.08*0.31* 1.292 * 0.5],\
+                            "aire" : [0.62*0.262* 1.292 * 0.5, 0.62*0.262* 1.292 * 0.5, 0.34*0.1* 1.292 * 0.5, 0.34*0.1* 1.292 * 0.5, 1.08*0.31* 1.292 * 0.5],\
                             "cp_list": [np.array([-0.013,0.475,-0.040],       dtype=np.float).flatten(), \
                                         np.array([-0.013,-0.475,-0.040],      dtype=np.float).flatten(), \
-                                        np.array([-1.006,0.85,-0.134],    dtype=np.float).flatten(),\
-                                        np.array([-1.006,-0.85,-0.134],   dtype=np.float).flatten(),\
+                                        np.array([-1.006,0.17,-0.134],    dtype=np.float).flatten(),\
+                                        np.array([-1.006,-0.17,-0.134],   dtype=np.float).flatten(),\
                                         np.array([0.021,0,-0.064],          dtype=np.float).flatten()],
                             "alpha0" : np.array([0.07,0.07,0,0,0.07]),\
                             "alpha_stall" : 0.3391428111 ,                     \
@@ -74,7 +74,7 @@ def main_func(x):
                             "Ct": 1.1e-4, \
                             "Cq": 1e-8, \
                             "Ch": 1e-4,\
-                            "rotor_moy_speed":900/2}
+                            "rotor_moy_speed":925/2}
             
         raw_data=pd.read_csv(log_path)
         
