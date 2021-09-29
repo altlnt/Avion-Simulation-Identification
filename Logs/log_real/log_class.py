@@ -212,6 +212,11 @@ class Log():
             anginterp=interp1d(attitude.timestamp.values,attitude["q["+str(q_)+"]"].values)
             DATA['q['+str(q_)+"]"]=anginterp(clip(DATA['t'].values,min(attitude.timestamp.values),max(attitude.timestamp.values)))        
 
+        for l_ in range(5):
+            controlinterp=interp1d(act.timestamp.values,act["output["+str(l_)+"]"].values)
+            DATA['output['+str(l_)+"]"]=controlinterp(clip(DATA['t'].values,min(act.timestamp.values),max(act.timestamp.values)))        
+
+
         attinterp=interp1d(attitude.timestamp.values,att.T)
         rsatt=attinterp(clip(DATA['t'].values,min(attitude.timestamp.values),max(attitude.timestamp.values)))
 
@@ -232,9 +237,9 @@ class Log():
 
         DATA['roll'],DATA['pitch'],DATA['yaw']=rsatt
         DATA['init_timestamp ']=init_timestamp*ones(len(DATA))
-        kv_motor=960.0
-        pwmmin=1075.0
-        pwmmax=1950.0
+        # kv_motor=960.0
+        # pwmmin=1075.0
+        # pwmmax=1950.0
 
         DATA['dt']=gradient(DATA.t.values)
 
@@ -321,10 +326,15 @@ class Log():
         dic_data['torque[1]']=f.ang_acc1.values * 0.84
         dic_data['torque[2]']=f.ang_acc2.values * 2.17
         
-        dic_data['joystick[0]']=f.ctrl0.values * 250
-        dic_data['joystick[1]']=f.ctrl1.values * 250
-        dic_data['joystick[2]']=f.ctrl2.values * 250 
-        dic_data['joystick[3]']=(f.ctrl3.values-0.5)*2 * 250
+        # max_PWM=2000
+        # min_PWM=1000
+        mean_PWM_1=1527
+        mean_PWM_2=1533
+        dic_data['output[0]']=(f["output[0]"].values-mean_PWM_1)/500
+        dic_data['output[1]']=(f["output[1]"].values-mean_PWM_1)/500
+        dic_data['output[2]']=(f["output[2]"].values-mean_PWM_2)/500
+        dic_data['output[3]']=(f["output[3]"].values-mean_PWM_2)/500
+        dic_data['output[4]']=(f["output[4]"].values-1000)/1000
 
         dic_data['takeoff']=[1 if f.z.values[i]<-10 else 0 for i in range(len(f.t))]
 
@@ -336,7 +346,7 @@ class Log():
             data.to_csv(log)
 
 
-logs=["log_3_2021-7-20-10-49-26","log_4_2021-7-20-10-58-16", "log_5_2021-7-20-11-12-20", "log_6_2021-7-20-11-41-56"]
+logs=["log_5_2021-7-20-11-12-20", "log_6_2021-7-20-11-41-56"]
 for i in range(len(logs)):
     os.chdir("/home/mehdi/Documents/identification_modele_avion/Logs/log_real/")
     log=logs[i]

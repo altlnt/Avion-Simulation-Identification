@@ -16,6 +16,7 @@ import transforms3d as tf3d
 import numpy as np
 from Simulation.MoteurPhysique_class import MoteurPhysique as MPHI
 import time
+import dill as dill
 
 if input('Log real ? (y/n)')=='y':    
     log_real=True
@@ -23,7 +24,7 @@ else:
     log_real=False
 
 if log_real==True:
-    print(sort(os.listdir("/home/mehdi/Documents/identification_modele_avion/OptiResults/Opti_real/")))
+    print(sort(os.listdir("../OptiResults/Opti_real/")))
 else:
     print(sort(os.listdir("/home/mehdi/Documents/identification_modele_avion/OptiResults/Opti_sim/")))
 if input('Continue ? (y/n)') =="n":
@@ -33,7 +34,8 @@ else:
     Nb_opti =int(input('Nombre d opti a afficher : '))
     first_opti = int(input('Numéro de la première opti a afficher :'))
     MoteurPhysique=MPHI(called_from_opti=True)
-
+    # MoteurPhysique.Effort_function=dill.load(open('../Simulation/function_moteur_physiquewind_only','rb'))
+    alp=[]
     for n_d in range(Nb_opti):
         if log_real==True:            
             opti_name = sort(os.listdir("/home/mehdi/Documents/identification_modele_avion/OptiResults/Opti_real/"))[n_d+first_opti]
@@ -99,6 +101,8 @@ else:
             list_fig[n].plot(val)
             list_fig[n].set_ylabel(keys)
             list_fig[n].set_xlabel('sample')
+            if keys in opti_variables_keys:
+                list_fig[n].axhline(dic_params_init[keys].values,color="black")
             if max(dic_results['train_score'].values)>50:
                 if keys not in ['train_score', 'wind_X', 'wind_Y','eval_score']:
                     list_fig[n].set_ylim((0,dic_params_init[keys].values*50))
@@ -168,7 +172,7 @@ else:
             return Dict
         
         def model(X_params,x_data, y_data=None, log_real=False, MoteurPhysique=MoteurPhysique):
-            
+            global alp
             "### Cette fonction permet de faire tourner le moteur physique pour un jeu de paramètres, avec un jeu de données d'entrée"
             t,takeoff=x_data[0],x_data[1]
             if log_real==True:
@@ -179,12 +183,6 @@ else:
             omega=x_data[11+offset:14+offset]
             q=x_data[14+offset:18+offset]
             joystick_input=x_data[18+offset:]
-            # print(x_data)
-            # print(q)
-            # print(joystick_input)
-            # print(takeoff)
-            # print(speed)
-            # input(omega)
             
             MoteurPhysique.speed=speed
             MoteurPhysique.q=q
@@ -199,24 +197,31 @@ else:
             else:
                 MoteurPhysique.Dict_variables=X_to_Dict_Variables(X_params)
 
-            MoteurPhysique.Dict_variables['alpha0' ] = np.array([0.03,0.03,0,0,0.03])
-            MoteurPhysique.Dict_variables['wind_X' ] =0
-            MoteurPhysique.Dict_variables['wind_Y' ] =0
+            # MoteurPhysique.Dict_variables["cp_list"]= [np.array([-0.013,0.475,-0.040],       dtype=np.float).flatten(), \
+            #                                            np.array([-0.013,-0.475,-0.040],      dtype=np.float).flatten(), \
+            #                                            np.array([-1.006,0.17,-0.134],    dtype=np.float).flatten(),\
+            #                                            np.array([-1.006,-0.17,-0.134],   dtype=np.float).flatten(),\
+            #                                            np.array([0.021,0,-0.064],          dtype=np.float).flatten()]
+            # MoteurPhysique.Dict_variables[ "aire" ]=[0.62*0.262* 1.292 * 0.5, 0.62*0.262* 1.292 * 0.5, 0.34*0.1* 1.292 * 0.5, 0.34*0.1* 1.292 * 0.5, 1.08*0.31* 1.292 * 0.5]
+
+            # MoteurPhysique.Dict_variables['alpha0' ] = np.array([0.03,0.03,0,0,0.03])
+            # MoteurPhysique.Dict_variables['wind_X' ] =0
+            # MoteurPhysique.Dict_variables['wind_Y' ] =0
 
             MoteurPhysique.compute_dynamics(joystick_input,t)
             d=np.r_[MoteurPhysique.forces,MoteurPhysique.torque]
-        
+            alp = alp+ [MoteurPhysique.Dict_etats['alpha']]
             output=d.reshape((1,6))
             return output
         
-        # current_Dict_variables['cl1sa']=2.3
-        current_Dict_variables['cd1sa']=1.5
-        current_Dict_variables['cd0sa']=0.55
-        current_Dict_variables['coeff_lift_shift']=0.09
+        # current_Dict_variables['cl1sa']=4.5
+        # current_Dict_variables['cd1sa']=0
+        # current_Dict_variables['cd0sa']=0.0
+        # current_Dict_variables['coeff_lift_shift']=0.01
                 
-        current_Dict_variables['coeff_drag_shift']=0.65
+        # current_Dict_variables['coeff_drag_shift']=0.65
 
-        current_Dict_variables['coeff_lift_gain']=3
+        # current_Dict_variables['coeff_lift_gain']=3
 
         X_params=Dict_variables_to_X(current_Dict_variables)
         # Init_Dict_variables = {i : dic_params_init[i] for i in MoteurPhysique.Dict_variables.keys()}
@@ -231,53 +236,53 @@ else:
 
         if not trace=='n':
             if log_real==True:
-                beg=(int(np.random.random()*len(X_data))-10000)
+                beg=(int(np.random.random()*len(X_data))-10000)*0
                 if beg>len(X_data)-10000:
                     beg=len(X_data)-10100
                 elif beg<0:
                     beg=10
-                en=beg+10000
+                en=len(X_data)
             else:
                 beg=0
                 en=len(X_data)
-            
+
             t1 = time.time() 
             y_sim_end = [model(X_params, X_data[beg+v], log_real=log_real) for v in range(en-beg)]
             t2 = time.time() 
             print("End for sim with end params in : "+str(t2-t1)+" s")
-            # y_sim_begin=[model(X_params_init, X_data[beg+v], log_real=log_real) for v in range(en-beg)]
+            y_sim_begin=[model(X_params_init, X_data[beg+v], log_real=log_real) for v in range(en-beg)]
             t3 = time.time()    
             print("End for sim with begin params in : "+str(t3-t2)+" s")
 
-
-            liste_name=['Force', 'Couple']
-            fig_sim=plt.figure("Simulation pour l'opti "+opti_name)
             
-            L_real=['darkgreen','darkred','darkblue'] 
-            L_sim_end=['lightgreen','lightcoral','skyblue']
-            L_sim_begin=['green','red','blue']
+            liste_name=['Force', 'Couple']
+            fig_sim=plt.figure("Simulation neg pour l'opti "+opti_name)
+            
+            L_real=['black','black','black'] 
+            L_sim_end=['red','red','red']
+            L_sim_begin=['green','green','green']
             for w in range(6):
                 
                 x_plot = [X_data[beg+j][0] for j in range(en-beg)]
                 y_plot = [Y_data[beg+j][w] for j in range(en-beg)]
                 
                 y_end=[y_sim_end[j][0][w] for j in range(en-beg)]
-                # y_begin=[y_sim_begin[j][0][w] for j in range(en-beg)]
+                y_begin=[y_sim_begin[j][0][w] for j in range(en-beg)]
 
                 figure=fig_sim.add_subplot(2,3,w+1)
-                R_arr=np.array([tf3d.quaternions.quat2mat([i,j,k,l]) for i,j,k,l in zip(data_prepared['q_0'],data_prepared['q_1'],data_prepared['q_2'],data_prepared['q_3'])]) 
-                vec_pousse = [ (dic_params_init['Ct'] * (dic_params_init['rotor_moy_speed']*(1+X_data[b][-1]/250))**2) for b in range(en-beg)]
-                poussee=R_arr[beg:en,:,0]*vec_pousse
+                # R_arr=np.array([tf3d.quaternions.quat2mat([i,j,k,l]) for i,j,k,l in zip(data_prepared['q_0'],data_prepared['q_1'],data_prepared['q_2'],data_prepared['q_3'])]) 
+                # vec_pousse = [ (dic_params_init['Ct'] * (dic_params_init['rotor_moy_speed']*(1+X_data[b][-1]/250))**2) for b in range(en-beg)]
+                # poussee=R_arr[beg:en,:,0]*vec_pousse
                 if w<3:
                     figure.plot(x_plot,y_plot, label="real data", color=L_real[w])
-                    puiss=[poussee[l,w] for l in range(len(poussee))]
-                    figure.plot(x_plot,puiss, label='Poussé')
-                    # figure.plot(x_plot, y_begin, label="simu avant opti", color=L_sim_begin[w], linestyle='--')
+                    # puiss=[poussee[l,w] for l in range(len(poussee))]
+                    # figure.plot(x_plot,puiss, label='Poussé')
+                    figure.plot(x_plot, y_begin, label="simu avant opti", color=L_sim_begin[w], linestyle='--')
                     figure.plot(x_plot, y_end, label="simu post opti", color=L_sim_end[w],linestyle='--')
                     figure.set_ylabel(liste_name[0]+"["+str(w)+"] (N)")
                 else:
                     figure.plot(x_plot,y_plot, label="real data", color=L_real[w-3])
-                    # figure.plot(x_plot, y_begin, label="simu avant opti", color=L_sim_begin[w-3],linestyle='--')
+                    figure.plot(x_plot, y_begin, label="simu avant opti", color=L_sim_begin[w-3],linestyle='--')
                     figure.plot(x_plot, y_end, label="simu post opti", color=L_sim_end[w-3],linestyle='--')
                     figure.set_ylabel(liste_name[1]+"["+str(w-3)+"] (N/m)")
                 figure.legend()
