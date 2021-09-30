@@ -24,17 +24,17 @@ from pylab import sort
 from datetime import datetime
 import csv
 
-function=dill.load(open('../Simulation/function_moteur_physique','rb'))
 #%% Initialisation des paramètres
-log_real=True
-plot=False
+log_real=False
+plot=True
 log_name=''
-name_script='Optimizer_script.py'
-train_batch_size=5 
+name_script='Optimizer.py'
+train_batch_size=5
 n_epochs=1000
-type_grad="wind_only"
+type_grad=['wind_only','params_plus_wind', 'params'][2]
+
 if log_real==False:
-    learning_rate=5
+    learning_rate=2
 else:
     learning_rate=1e-2
 fitting_strategy='custom_gradient'
@@ -42,13 +42,13 @@ fitting_strategy='custom_gradient'
 #%% Initialisation de l'opti en fonction des données d'entrées (réelles ou simulées) et créations des noms des dossier
 if log_real==True:
     plot=False
-    log_path=os.path.join('/home/mehdi/Documents/identification_modele_avion/Logs/log_real/'+log_name+'/log_real.csv')     
+    log_path=os.path.join('/home/mehdi/Documents/identification_modele_avion/Logs/log_real'+log_name+'/log_real.csv')     
     
     "#### Chargement des données depuis le fichier de log, et initialisation de l'optimizeur, attention"
     "les noms des variables peuvent être trompeur quand on fait une optimization avec des données réelles"
     "#### Ex : true_params ne signifie pas les paramètres réels, mais seulement les paramètres initiaux de l'opti"
-    true_params     =  {"wind_X" :3,  \
-                        "wind_Y" :2.5,  \
+    true_params     =  {"wind_X" :0,  \
+                        "wind_Y" :0,  \
                         "wind_Z" :0,  \
                         "g"    : np.array([0,0,9.81]),                    \
                         "mode" : [1,1,1,1],\
@@ -83,8 +83,8 @@ if log_real==True:
     result_dir_name=result_dir_name if result_dir_name!="" else str(len(os.listdir(result_save_path))+1)
 
 else:
-    log_dir_path=os.path.join("/home/mehdi/Documents/identification_modele_avion/Logs/log_sim",\
-                              sort(os.listdir("/home/mehdi/Documents/identification_modele_avion/Logs/log_sim"))[-1])
+    log_dir_path=os.path.join("../Logs/log_sim",\
+                             np.delete(np.sort(os.listdir("../Logs/log_sim")), -1)[-1])
     log_path=os.path.join(log_dir_path,"log.txt")     
     true_params_path=os.path.join(log_dir_path,"params.json")
     
@@ -105,7 +105,7 @@ spath=os.path.join(result_save_path,result_dir_name)
 
 # %% Chargement du moteur physique et des paramètres utilisé pour l'opti a partir du jupyter
 MoteurPhysique=MPHI(called_from_opti=True)
-MoteurPhysique=MPHI(called_from_opti=True)
+
 if not type_grad==None:
     print("Chargement des fonctions du moteur physique...")
     MoteurPhysique.Effort_function=dill.load(open('../Simulation/function_moteur_physique'+type_grad,'rb'))
@@ -214,9 +214,6 @@ def X_to_Dict_Variables(V, opti_variables_keys=opti_variables_keys, start_Dict_v
     return Dict
 
 def generate_random_params(X_params,amp_dev=0.0,verbose=True):
-    # for p,params in enumerate(X_params):
-    #     if params==0:
-    #         X_params[p]=0.1
     new_X_params=X_params*(1+amp_dev*(np.random.random(size=len(X_params))-0.5))    
     for p, params in enumerate(new_X_params):
         if params==0:
@@ -283,7 +280,7 @@ def cost(X_params,x_data,y_data,verbose=False, RMS=None):
 
     C/=len(used_x_batch)
     RMS_forces/=len(used_x_batch)
-    RMS_torque/=len(used_x_batch)       # C=cout_forces*np.sum(sum_error_forces) + cout_torque*np.sum(sum_error_torque)
+    RMS_torque/=len(used_x_batch)
 
     if RMS==True:
         return C, RMS_forces , RMS_torque
@@ -367,15 +364,7 @@ else:
     current_train_score=1.
     start_Dict_variables = X_to_Dict_Variables(generate_random_params\
                         (Dict_variables_to_X(real_Dict_variables),amp_dev=1,verbose=True))
-    # start_Dict_variables["cd0sa"]=0.00999326172362672
-    # start_Dict_variables["cd1sa"]=4.550179431280277
-    # start_Dict_variables["cl1sa"]=4.999740931136897
-    # start_Dict_variables["coeff_drag_shift"]=0.4999212041532855
-    # start_Dict_variables["coeff_lift_gain"]=2.429539624079285
-    # start_Dict_variables["coeff_lift_shift"]=0.06417931204686833
-    # start_Dict_variables["wind_X"]=0.0
-    # start_Dict_variables["wind_Y"]=0.0
-
+        
     current_Dict_variables =start_Dict_variables
     best_Dict_variables = current_Dict_variables
 
@@ -422,7 +411,7 @@ if spath is not None:
         spamwriter.writerow(sdict.values())
 
         
-    with open(os.path.join(spath, "Optimizer_script_used.py"), 'w') as f:
+    with open(os.path.join(spath, "MoteurPhysique_used.py"), 'w') as f:
         f.write(open(name_script).read())
         
         
@@ -599,9 +588,6 @@ for i in range(n_epochs):
                spamwriter.writerow(sdict.keys())
                
         current_test_score=new_test_score
-        
-        # for keys in monitor.dict_params_finish.keys():
-        #     list_index = list_index + [opti_variables_keys.index(keys)]
             
     if log_real==False:
         monitor.y_sim = [model(current_Dict_variables, X_test_sim[i]) for i in range(len(X_test_sim))]

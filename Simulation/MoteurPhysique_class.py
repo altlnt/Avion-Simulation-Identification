@@ -255,8 +255,8 @@ class MoteurPhysique():
                                                   self.Dict_variables["Ct"], self.Dict_variables["Cq"], \
                                                   self.Dict_variables["Ch"],self.Dict_Commande["rotor_speed"])
 
-                self.forces= self.R @ np.transpose(forces.flatten()) +  self.Dict_variables["masse"] *self.Dict_world["g"]
-                self.torque = np.transpose(torque).flatten()  
+                self.forces= self.R @(forces.flatten()) +  self.Dict_variables["masse"] *self.Dict_world["g"]
+                self.torque = (torque).flatten()  
                 if self.takeoff==0:
                     self.forces[2]=min(self.forces[2],0)
                     

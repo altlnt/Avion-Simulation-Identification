@@ -28,7 +28,7 @@ def main_func(x):
     log_real=x[0]
     plot=x[1]
     log_name=x[2]
-    name_script='parallele_opti.py'
+    name_script='Optimizer_parallele.py'
     train_batch_size=x[3] 
     n_epochs=1000
     learning_rate=x[4]
@@ -83,8 +83,8 @@ def main_func(x):
         result_dir_name=result_dir_name if result_dir_name!="" else str(len(os.listdir(result_save_path))+1)
     
     else:
-        log_dir_path=os.path.join("/home/mehdi/Documents/identification_modele_avion/Logs/log_sim",\
-                                  sort(os.listdir("/home/mehdi/Documents/identification_modele_avion/Logs/log_sim"))[-1])
+        log_dir_path=os.path.join("../Logs/log_sim",\
+                             np.delete(np.sort(os.listdir("../Logs/log_sim")), -1)[-1])
         log_path=os.path.join(log_dir_path,"log.txt")     
         true_params_path=os.path.join(log_dir_path,"params.json")
         
@@ -620,11 +620,11 @@ from multiprocessing import Pool
 
 if __name__ == '__main__':
      
-    log_real=[True, True]
+    log_real=[False, False]
     plot=[False,False]
     log_name=[""]
     train_batch_size=15
-    learning_rate=[5e-2, 5e-2]
+    learning_rate=[5e-0, 5e-0]
     fitting_strategy = ['custom_gradient']
     wind = [-2,-0.75]
     type_grad = ['params']
