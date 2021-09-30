@@ -136,6 +136,7 @@ class MoteurPhysique():
             with open(os.path.join(self.save_path_base,'params.json'), 'w') as fp:
                 json.dump(self.SaveDict, fp)
             with open(os.path.join(self.save_path_base,'MoteurPhysique.py'), 'w') as mp:
+                print("saved_ moteur")
                 mp.write(open("MoteurPhysique_class.py").read())
 
             print(self.data_save_path)
@@ -255,8 +256,8 @@ class MoteurPhysique():
                                                   self.Dict_variables["Ct"], self.Dict_variables["Cq"], \
                                                   self.Dict_variables["Ch"],self.Dict_Commande["rotor_speed"])
 
-                self.forces= self.R @(forces.flatten()) +  self.Dict_variables["masse"] *self.Dict_world["g"]
-                self.torque = (torque).flatten()  
+                self.forces= self.R @ np.transpose(forces.flatten()) +  self.Dict_variables["masse"] *self.Dict_world["g"]
+                self.torque = np.transpose(torque).flatten()  
                 if self.takeoff==0:
                     self.forces[2]=min(self.forces[2],0)
                     

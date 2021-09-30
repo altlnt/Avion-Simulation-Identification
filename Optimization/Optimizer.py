@@ -34,7 +34,7 @@ n_epochs=1000
 type_grad=['wind_only','params_plus_wind', 'params'][2]
 
 if log_real==False:
-    learning_rate=2
+    learning_rate=5
 else:
     learning_rate=1e-2
 fitting_strategy='custom_gradient'
