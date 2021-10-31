@@ -96,7 +96,9 @@ class Viewer:
         self.sizes=[self.Msize]
         
         
-        self.sp1 = gl.GLScatterPlotItem(pos=np.array(self.pos), size=np.array(self.sizes),color=np.array(self.cols), pxMode=False)
+        self.sp1 = gl.GLScatterPlotItem(pos=np.array(self.pos), 
+                                        size=np.array(self.sizes),
+                                        color=np.array(self.cols), pxMode=False)
         self.w_translation.addItem(self.sp1)
         self.w_translation.addItem(self.m1)
 
@@ -191,9 +193,9 @@ class Viewer:
         self.w_translation.opts['rotation'] = self.target_q
         self.w_translation.setCameraPosition(pos=QtGui.QVector3D(self.new_pos[0], \
                                                                  self.new_pos[1], \
-                                                                 self.new_pos[2]),\
-                                             rotation=QtGui.QVector4D(self.target_q[0],self.target_q[1]\
-                                                                      ,self.target_q[2],self.target_q[3]))
+                                                                 self.new_pos[2]))
+                                             # rotation=QtGui.QVector4D(self.target_q[0],self.target_q[1]\
+                                             #                          ,self.target_q[2],self.target_q[3]))
     
     def update_joysticks(self):
         pygame.event.get()
